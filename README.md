@@ -26,7 +26,7 @@ about. That risk is deliberately confined — see [Fragile points](#fragile-poin
 
 ```bash
 npm install
-npm test          # 206 tests, no browser or Kanban Tool account needed
+npm test          # 210 tests, no browser or Kanban Tool account needed
 npm run build     # -> dist/kt-table-view.js
 npm run harness   # http://localhost:5180 - the real table against fake board data
 ```
@@ -120,7 +120,8 @@ board the script detects there is no `<kt-board>` and does nothing.
   with the side panel the activity list and comment box live in.
   Closing the card leaves you back in the table; only if the card cannot be layered over
   it does the table step aside and show the board.
-- An open card - from the board or from the table - gets a **Files** button. It shows the
+- An open card - from the board or from the table - gets a **Browse files** button beside
+  its *Attachments* heading. It shows the
   card's image attachments as previews; click one to see it full size, and step through
   them with the ‹ › arrows or the arrow keys. Escape goes back one step at a time and
   never closes the card underneath.
@@ -200,10 +201,13 @@ settled on the pilot board; the last two are the only `CONFIRM`s left in the sou
    field of each type and confirm the value lands on the card.
 7. **Attachments over the session** — the API docs only show bearer tokens, and list a
    card's attachments nowhere but `GET /api/v3/tasks/:id.json`. `src/kt/taskFiles.ts`
-   calls that with the session's cookies. Open **Files** on a card with images; a
+   calls that with the session's cookies. Open **Browse files** on a card with images; a
    refusal logs `attachments for task N: the API answered <status>` and the dialog
-   says it could not load the files. Also check where the button sits on the card: it
-   is prepended to `<kt-taskview>` until a header selector is confirmed.
+   says it could not load the files. The button's place is settled:
+   `<kt-task-attachments>` was confirmed with `probeCard()`, and the heading beside it is
+   found by its text. The console says once where the button went
+   (`files button: beside the Attachments heading`), so a renamed heading shows up as
+   one of the fallback lines.
 
 ## Notes from the first real board
 
@@ -267,7 +271,7 @@ account. Each has a regression test in `test/integration/launcher.test.ts`.
 
 ## Testing
 
-`npm test` runs 206 tests with no browser and no account:
+`npm test` runs 210 tests with no browser and no account:
 
 - **Model tests** cover column derivation from a board fixture with a custom field of
   every type, value parse/format round-trips, sorting per type, filtering, and grouping.

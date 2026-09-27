@@ -68,3 +68,43 @@ export function runSelfCheck(root: ParentNode = document): SelfCheckResult {
   if (!toolbarFound) missing.push(`toolbar (tried: ${TOOLBAR_CANDIDATES.join(', ')})`)
   return { ok: boardFound, boardFound, toolbarFound, missing }
 }
+
+/**
+ * The card's attachments section. Confirmed on the pilot board with
+ * `KTTableView.probeCard()`: `kt-taskview > form > div.kt-taskview-content > ul > li >
+ * kt-task-attachments`, holding the "Attach" dropdown and the file list.
+ */
+export const ATTACHMENTS_ELEMENT = 'kt-task-attachments'
+
+/**
+ * The "Attachments" heading above that section, matched by its own text rather than a
+ * tag or class, since the probe showed where the section lives but not what the heading
+ * is made of. Anchored at both ends so a file called "attachments.zip" is not taken for
+ * it; a count and a colon are allowed in case the host adds either.
+ */
+export const ATTACHMENTS_HEADING = /^attachments(\s*\(\d+\))?:?$/i
+
+/** Text written directly in an element, not in its children. */
+function ownText(element: Element): string {
+  let text = ''
+  for (const node of element.childNodes) {
+    if (node.nodeType === Node.TEXT_NODE) text += node.textContent ?? ''
+  }
+  return text.trim()
+}
+
+/**
+ * The heading of the attachments section in an open card, looked for in the section's
+ * field row (its `<li>`) and then in the section itself. Null when the card has no
+ * attachments section, or no element in it reads "Attachments".
+ */
+export function findAttachmentsHeading(taskview: ParentNode): HTMLElement | null {
+  const section = taskview.querySelector(ATTACHMENTS_ELEMENT)
+  if (!section) return null
+  const row = section.parentElement ?? section
+  for (const element of row.querySelectorAll<HTMLElement>('*')) {
+    if (element.closest('.dropdown-menu')) continue
+    if (ATTACHMENTS_HEADING.test(ownText(element))) return element
+  }
+  return null
+}

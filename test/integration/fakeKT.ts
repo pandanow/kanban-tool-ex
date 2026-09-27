@@ -314,6 +314,15 @@ function openFakeTaskView(taskId: number, { attach = 'body', zIndex = 1050 }: Fa
     'background: #fff; border: 1px solid #9aa4b5; box-shadow: 0 6px 24px rgba(0,0,0,.3);'
   if (zIndex !== null) view.style.zIndex = String(zIndex)
   view.append(`Task #${taskId}`)
+  // The attachments section as the pilot board nests it. The heading's own markup is
+  // not confirmed - only its text is relied on - so a plain <label> stands in for it.
+  view.insertAdjacentHTML(
+    'beforeend',
+    '<form><div class="kt-taskview-content"><ul><li>' +
+      '<label>Attachments</label>' +
+      '<kt-task-attachments class="open"><div class="dropdown"><a class="kt-attach">Attach…</a></div>' +
+      '</kt-task-attachments></li></ul></div></form>',
+  )
 
   const closeButton = document.createElement('button')
   closeButton.className = '_close'

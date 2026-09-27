@@ -59,6 +59,46 @@ describe('the Files button', () => {
     await start()
     await openCardOnBoard()
     expect(all('kt-taskview .ktv-files-button')).toHaveLength(1)
+    expect(q('kt-taskview .ktv-files-button')?.textContent).toBe('Browse files')
+  })
+
+  it('sits beside the Attachments heading', async () => {
+    await start()
+    await openCardOnBoard()
+    const heading = q('kt-taskview kt-task-attachments')?.parentElement?.querySelector('label')
+    expect(heading?.querySelector('.ktv-files-button')).not.toBeNull()
+    expect(heading?.firstChild?.textContent).toBe('Attachments')
+  })
+
+  it('does not open the file picker through the heading when clicked', async () => {
+    await start()
+    await openCardOnBoard()
+    const heading = q('kt-taskview label') as HTMLElement
+    const onHeading = vi.fn()
+    heading.addEventListener('click', onHeading)
+    q('kt-taskview .ktv-files-button')?.click()
+    expect(onHeading).not.toHaveBeenCalled()
+    expect(isFilesOpen()).toBe(true)
+  })
+
+  it('goes above the attachments section when there is no heading', async () => {
+    await start()
+    await openCardOnBoard()
+    q('kt-taskview label')?.remove()
+    await settle()
+    const button = all('kt-taskview .ktv-files-launch')
+    expect(button).toHaveLength(1)
+    expect(button[0]?.nextElementSibling?.tagName.toLowerCase()).toBe('kt-task-attachments')
+  })
+
+  it('goes back beside the heading when the host redraws the section', async () => {
+    await start()
+    await openCardOnBoard()
+    const row = q('kt-taskview kt-task-attachments')?.parentElement as HTMLElement
+    row.innerHTML = '<label>Attachments</label><kt-task-attachments></kt-task-attachments>'
+    await settle()
+    expect(all('kt-taskview .ktv-files-button')).toHaveLength(1)
+    expect(row.querySelector('label .ktv-files-button')).not.toBeNull()
   })
 
   it('appears on a card opened from the table', async () => {
@@ -70,13 +110,14 @@ describe('the Files button', () => {
     expect(all('kt-taskview .ktv-files-button')).toHaveLength(1)
   })
 
-  it('comes back when the host redraws the card', async () => {
+  it('goes at the top of a card with no attachments section', async () => {
     await start()
     await openCardOnBoard()
     const taskview = q('kt-taskview') as HTMLElement
     taskview.innerHTML = 'Task #1, redrawn'
     await settle()
     expect(all('kt-taskview .ktv-files-button')).toHaveLength(1)
+    expect(q('kt-taskview')?.firstElementChild?.classList.contains('ktv-files-launch')).toBe(true)
   })
 })
 

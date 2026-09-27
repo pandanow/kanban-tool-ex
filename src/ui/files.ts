@@ -11,16 +11,23 @@
 // card on a board gets opened. The dialog is built beside the card, on <body>, rather
 // than inside host markup, and closes when the card does.
 //
-// The button is prepended to `<kt-taskview>` because nothing narrower in the card's
-// markup has been confirmed yet. If it should sit in the card's header instead, that is
-// a selector for `src/kt/selectors.ts`, not a change here.
+// Where the button goes, best first: inside the card's "Attachments" heading, beside
+// its text; before the attachments section when no heading is found; at the top of the
+// card when there is no attachments section at all. It is inside the heading rather
+// than after it because the heading may be a block that would push a sibling onto its
+// own line - and a button inside a `<label>` is safe, since a label does nothing when
+// the click lands on an interactive element within it.
 
 import { h, render } from 'preact'
 import { log, warn } from '../kt/env'
 import { findTaskViewElement, readTaskId } from '../kt/openTask'
+import { ATTACHMENTS_ELEMENT, findAttachmentsHeading } from '../kt/selectors'
 import { FilesDialog } from './FilesDialog'
 
 const BUTTON_CLASS = 'ktv-files-launch'
+const BUTTON_LABEL = 'Browse files'
+
+type Placement = 'heading' | 'section' | 'card'
 
 interface DialogState {
   container: HTMLElement
@@ -34,6 +41,8 @@ interface DialogState {
 let dialog: DialogState | null = null
 let lastClickedTaskId: number | null = null
 let installed = false
+/** Last placement logged, so a card redrawing does not repeat the same line. */
+let loggedPlacement: Placement | null = null
 
 function taskIdFor(taskview: HTMLElement): number | null {
   return readTaskId(taskview) ?? lastClickedTaskId
@@ -140,30 +149,63 @@ export function openFiles(taskview: HTMLElement): void {
   renderDialog()
 }
 
-function createButton(taskview: HTMLElement): HTMLElement {
-  const bar = document.createElement('div')
-  bar.className = BUTTON_CLASS
+function createButton(taskview: HTMLElement, placement: Placement): HTMLElement {
+  const wrapper = document.createElement('span')
+  wrapper.className = `${BUTTON_CLASS} ${BUTTON_CLASS}--${placement}`
   const button = document.createElement('button')
   button.type = 'button'
   button.className = 'ktv-files-button'
-  button.textContent = 'Files'
+  button.textContent = BUTTON_LABEL
   button.title = "Show this card's images"
   button.addEventListener('click', (event) => {
     event.preventDefault()
     event.stopPropagation()
     openFiles(taskview)
   })
-  bar.appendChild(button)
-  return bar
+  wrapper.appendChild(button)
+  return wrapper
+}
+
+/** Puts the button where it belongs in this card; see the note at the top of the file. */
+function place(taskview: HTMLElement): void {
+  const heading = findAttachmentsHeading(taskview)
+  const section = heading ? null : taskview.querySelector(ATTACHMENTS_ELEMENT)
+  const placement: Placement = heading ? 'heading' : section ? 'section' : 'card'
+
+  const existing = taskview.querySelector<HTMLElement>(`.${BUTTON_CLASS}`)
+  if (existing?.classList.contains(`${BUTTON_CLASS}--${placement}`)) {
+    const inPlace =
+      placement === 'heading'
+        ? existing.parentElement === heading
+        : placement === 'section'
+          ? existing.nextElementSibling === section
+          : existing.parentElement === taskview
+    if (inPlace) return
+  }
+  existing?.remove()
+
+  const button = createButton(taskview, placement)
+  if (heading) heading.appendChild(button)
+  else if (section) section.before(button)
+  else taskview.prepend(button)
+
+  if (placement !== loggedPlacement) {
+    loggedPlacement = placement
+    log(
+      placement === 'heading'
+        ? 'files button: beside the Attachments heading'
+        : placement === 'section'
+          ? 'files button: no Attachments heading found, placed above the attachments section'
+          : 'files button: no attachments section in this card, placed at the top',
+    )
+  }
 }
 
 /** Puts a button on the open card if it has none, and closes a dialog it has outlived. */
 export function syncFilesButton(): void {
   const taskview = findTaskViewElement()
   if (dialog && dialog.taskview !== taskview) closeFiles()
-  if (!taskview) return
-  if (taskview.querySelector(`:scope > .${BUTTON_CLASS}`)) return
-  taskview.prepend(createButton(taskview))
+  if (taskview) place(taskview)
 }
 
 function rememberClickedTask(event: Event): void {

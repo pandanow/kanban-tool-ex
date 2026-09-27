@@ -638,8 +638,24 @@ body.ktv-open .ktv-launch-floating {
 /* Sits inside the host's <kt-taskview>, so it resets what Bootstrap 2.3.2 gives a
    bare button and takes nothing else from the card around it. */
 .ktv-files-launch {
-  display: flex !important;
   visibility: visible !important;
+}
+
+/* Beside the "Attachments" heading's text, taking nothing from the heading's own
+   weight, size or case. */
+.ktv-files-launch--heading {
+  display: inline-block !important;
+  margin-left: 10px;
+  vertical-align: middle;
+  font-weight: normal;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* The fallbacks, where there is no heading to sit beside: a row of its own. */
+.ktv-files-launch--section,
+.ktv-files-launch--card {
+  display: flex !important;
   justify-content: flex-end;
   padding: 4px 8px 0;
 }
@@ -655,6 +671,11 @@ body.ktv-open .ktv-launch-floating {
   text-shadow: none;
   box-shadow: none;
   cursor: pointer;
+}
+
+.ktv-files-launch--heading .ktv-files-button {
+  padding: 1px 8px;
+  font-size: 11px;
 }
 
 .ktv-files-button:hover {
