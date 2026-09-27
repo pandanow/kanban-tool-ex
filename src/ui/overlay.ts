@@ -22,6 +22,7 @@ import { log, notifyError, warn } from '../kt/env'
 import { loadCurrentBoard } from '../kt/currentBoard'
 import { findBoardElement } from '../kt/selectors'
 import { BoardStore } from '../kt/store'
+import { closeTaskView, type TableLayer } from '../kt/openTask'
 import { TableView } from './TableView'
 
 /** Set on <body> while the table is up, so the floating launcher can hide itself. */
@@ -44,6 +45,31 @@ let opening = false
 
 export function isOpen(): boolean {
   return mounted !== null
+}
+
+/**
+ * What the table can do about its own depth, handed to `openTask` so a card can be
+ * opened over the table instead of in place of it.
+ *
+ * The z-index is set with `important` because the stylesheet's own is: `.ktv-root`
+ * forces the top of the range so a host rule cannot bury the table, and a plain inline
+ * value would lose to it.
+ */
+function tableLayer(container: HTMLElement): TableLayer {
+  return {
+    sendBehind(zIndex: number): void {
+      container.style.setProperty('z-index', String(zIndex), 'important')
+    },
+    bringForward(): void {
+      container.style.removeProperty('z-index')
+    },
+    showBoard: close,
+    isCoveringPoint(x: number, y: number): boolean {
+      if (typeof document.elementFromPoint !== 'function') return false
+      const onTop = document.elementFromPoint(x, y)
+      return onTop !== null && container.contains(onTop)
+    },
+  }
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -138,6 +164,9 @@ export function close(): void {
   if (!mounted) return
   const state = mounted
   mounted = null
+  // A card open over the table holds an inline style on the host's own element and a
+  // watcher on the document; neither may outlive the table it was layered against.
+  closeTaskView()
   document.body.classList.remove(OPEN_BODY_CLASS)
   state.stopTracking()
   state.restoreScrolling()
@@ -179,7 +208,7 @@ export async function open(): Promise<void> {
     document.body.classList.add(OPEN_BODY_CLASS)
 
     render(
-      h(TableView, { store, onClose: close, showBoard: close }),
+      h(TableView, { store, onClose: close, layer: tableLayer(container) }),
       container,
     )
 

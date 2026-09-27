@@ -10,8 +10,9 @@
 //     longer depends on finding it: when no toolbar matches we float the button over the
 //     page instead. The feature is reachable on any board, guessed selectors or not.
 
-import { getJQuery, getKT, log, warn } from '../kt/env'
+import { BUILD, getJQuery, getKT, log, warn } from '../kt/env'
 import { findToolbarElement } from '../kt/selectors'
+import { behindZIndex, stackingZIndex, taskViewOwnsEscape } from '../kt/openTask'
 import { close, isOpen, onBoardRerender, toggle } from './overlay'
 import type { ContextMenuEntry } from '../kt/types'
 
@@ -103,15 +104,22 @@ function watchBoardRenders(): void {
 }
 
 function watchEscape(): void {
-  document.addEventListener('keydown', (event) => {
+  const handler = (event: KeyboardEvent): void => {
     // Only when nothing is being typed into, so Escape still cancels a cell edit first.
     const target = event.target as HTMLElement | null
     const typing =
       target instanceof HTMLInputElement ||
       target instanceof HTMLTextAreaElement ||
       target instanceof HTMLSelectElement
-    if (event.key === 'Escape' && isOpen() && !typing) close()
-  })
+    // A card open over the table owns Escape: it closes the card, and the user is left
+    // in the table. Closing both at once would skip a step they did not ask for.
+    if (event.key === 'Escape' && isOpen() && !taskViewOwnsEscape(event.timeStamp) && !typing) {
+      close()
+    }
+  }
+  // Capture, so the state this reads is the state the keystroke started in rather than
+  // whatever the host's own Escape handling has already changed it to.
+  document.addEventListener('keydown', handler, true)
 }
 
 export function installLauncher(): void {
@@ -119,7 +127,21 @@ export function installLauncher(): void {
   guard('context menu entry', registerContextMenu)
   guard('board render watcher', watchBoardRenders)
   guard('escape handler', watchEscape)
-  log('table view ready')
+  log(`table view ready (build ${BUILD})`)
+}
+
+/** Each ancestor that could be hiding or layering an element, as a readable line. */
+function ancestorChain(element: HTMLElement): string[] {
+  const chain: string[] = []
+  for (let node = element.parentElement; node && node !== document.body; node = node.parentElement) {
+    const computed = getComputedStyle(node)
+    const name = `${node.tagName.toLowerCase()}${node.className ? `.${node.className}` : ''}`
+    chain.push(
+      `${name} [position: ${computed.position}, z-index: ${computed.zIndex},` +
+        ` visibility: ${computed.visibility}, display: ${computed.display}]`,
+    )
+  }
+  return chain
 }
 
 /**
@@ -129,6 +151,7 @@ export function installLauncher(): void {
  * on a real board is eleven per-card `.kt-task-header` elements and nothing useful.
  */
 export function inspect(): void {
+  log('build:', BUILD)
   const board = document.querySelector('kt-board')
   log('kt-board:', board)
   log('kt-board attributes:', board ? [...board.attributes].map((a) => `${a.name}="${a.value}"`) : [])
@@ -163,6 +186,25 @@ export function inspect(): void {
     const onTop = document.elementFromPoint(x, y)
     log(`topmost element at overlay centre (${x}, ${y}):`, onTop)
     log('  its classes:', onTop?.className, '| tag:', onTop?.tagName)
+  }
+
+  // Everything about an open card, which is the other thing that has needed pinning
+  // down on a real board: where the task view sits, how deep it is painted, and - since
+  // closing a card hides it rather than removing it - how it is currently hidden.
+  const taskview = document.querySelector('kt-taskview') as HTMLElement | null
+  log('kt-taskview:', taskview ?? 'none in the DOM');
+  if (taskview) {
+    const computed = getComputedStyle(taskview)
+    log('kt-taskview computed:', {
+      display: computed.display,
+      visibility: computed.visibility,
+      position: computed.position,
+      zIndex: computed.zIndex,
+    })
+    log('kt-taskview inline visibility:', JSON.stringify(taskview.style.visibility))
+    log('kt-taskview rect:', taskview.getBoundingClientRect())
+    log('kt-taskview ancestors (outermost last):', ancestorChain(taskview))
+    log('measured layer:', stackingZIndex(taskview), '-> table drops to', behindZIndex(taskview))
   }
 
   // The navbar is the only page-level chrome on a board, and the one place a header

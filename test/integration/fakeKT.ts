@@ -241,3 +241,77 @@ export function setupBoardPage(): { host: HTMLElement; boardElement: HTMLElement
 export function removeHeader(): void {
   document.querySelector('.navbar')?.remove()
 }
+
+export interface FakeCardsOptions {
+  /** Where the opened task view lands: a modal on <body>, or inside <kt-board>. */
+  attach?: 'body' | 'board'
+  /**
+   * Render the task view up front, hidden, and merely reveal it when a card is clicked
+   * - a host that keeps one panel around rather than building a new one each time.
+   */
+  preRendered?: boolean
+  /** The task view's z-index. Defaults to Bootstrap 2.3.2's modal layer, as the host
+   *  page uses it. `null` renders a task view that is not layered at all. */
+  zIndex?: number | null
+}
+
+/**
+ * The board's own cards and task view, as far as src/kt/openTask.ts is concerned:
+ * `<kt-task>` elements that open a `<kt-taskview>` when clicked, and a close button
+ * that takes it away again. Both shapes of task view are buildable, because which one
+ * a real board renders is not yet confirmed.
+ */
+export function installFakeCards(taskIds: number[], options: FakeCardsOptions = {}): void {
+  const boardElement = document.querySelector('kt-board')
+  if (!boardElement) throw new Error('installFakeCards() needs setupBoardPage() first')
+
+  if (options.preRendered) {
+    openFakeTaskView(0, options)
+    closeFakeTaskView()
+  }
+
+  for (const id of taskIds) {
+    const card = document.createElement('kt-task')
+    card.setAttribute('data-id', String(id))
+    card.addEventListener('click', () => {
+      const existing = document.querySelector('kt-taskview') as HTMLElement | null
+      if (options.preRendered && existing) {
+        existing.setAttribute('data-task-id', String(id))
+        existing.style.display = ''
+        return
+      }
+      openFakeTaskView(id, options)
+    })
+    boardElement.appendChild(card)
+  }
+}
+
+function openFakeTaskView(taskId: number, { attach = 'body', zIndex = 1050 }: FakeCardsOptions): void {
+  document.querySelector('kt-taskview')?.remove()
+
+  const view = document.createElement('kt-taskview')
+  view.setAttribute('data-task-id', String(taskId))
+  // Enough of a panel to be visible in the dev harness; the tests only read the layer.
+  view.style.cssText =
+    'position: fixed; top: 12%; left: 30%; width: 40%; height: 60%; padding: 16px;' +
+    'background: #fff; border: 1px solid #9aa4b5; box-shadow: 0 6px 24px rgba(0,0,0,.3);'
+  if (zIndex !== null) view.style.zIndex = String(zIndex)
+  view.append(`Task #${taskId}`)
+
+  const closeButton = document.createElement('button')
+  closeButton.className = '_close'
+  closeButton.textContent = 'Close'
+  // The pilot board hides its task view rather than removing it, which is the harder
+  // case to notice, so that is what the fake does.
+  closeButton.addEventListener('click', () => closeFakeTaskView())
+  view.appendChild(closeButton)
+
+  const host = attach === 'board' ? document.querySelector('kt-board') : document.body
+  host?.appendChild(view)
+}
+
+/** Closes the fake task view the way the real one closes: hidden, not removed. */
+export function closeFakeTaskView(): void {
+  const view = document.querySelector('kt-taskview') as HTMLElement | null
+  if (view) view.style.display = 'none'
+}

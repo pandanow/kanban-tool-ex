@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { board, task } from '../fixtures/board'
-import { installFakeKT, removeHeader, setupBoardPage } from './fakeKT'
+import { closeFakeTaskView, installFakeCards, installFakeKT, removeHeader, setupBoardPage } from './fakeKT'
 
 // The launcher keeps module-level state (whether the context menu entry was added), so
 // each test gets a fresh copy of the module.
@@ -10,6 +10,12 @@ async function freshLauncher(): Promise<typeof import('../../src/ui/launcher')> 
 }
 
 const launchButton = (): HTMLElement | null => document.getElementById('ktv-launch-button')
+
+/** Preact flushes effects after a frame; the store subscription is not attached before. */
+const settle = async (): Promise<void> => {
+  await new Promise((resolve) => requestAnimationFrame(() => resolve(null)))
+  await new Promise((resolve) => setTimeout(resolve, 0))
+}
 
 beforeEach(() => {
   window.localStorage.clear()
@@ -176,5 +182,86 @@ describe('while the table is open', () => {
     expect(document.body.classList.contains('ktv-open')).toBe(false)
     expect(document.querySelector('.ktv-root')).toBeNull()
     expect(launchButton()).not.toBeNull()
+  })
+})
+
+describe('Escape', () => {
+  /** Opens the table through the launcher, the way a user does. */
+  async function openTable(): Promise<void> {
+    removeHeader()
+    installFakeKT(board, [task({ id: 1, name: 'Fix login' })])
+    installFakeCards([1])
+    const launcher = await freshLauncher()
+    launcher.installLauncher()
+    launchButton()?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
+    await settle()
+  }
+
+  const pressEscape = (): void => {
+    document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+  }
+
+  it('closes the table', async () => {
+    await openTable()
+    pressEscape()
+    expect(document.querySelector('.ktv-root')).toBeNull()
+  })
+
+  it('belongs to the card while one is open over the table', async () => {
+    await openTable()
+    const openCard = document.querySelector('.ktv-row-body .ktv-open') as HTMLElement
+    openCard.click()
+    await settle()
+    expect(document.querySelector('kt-taskview')).not.toBeNull()
+
+    // The host closes its own task view on Escape; closing the table underneath it in
+    // the same keystroke would drop the user two levels out.
+    pressEscape()
+    expect(document.querySelector('.ktv-root')).not.toBeNull()
+
+    // Once the card is gone, Escape is the table's again.
+    closeFakeTaskView()
+    await settle()
+    pressEscape()
+    expect(document.querySelector('.ktv-root')).toBeNull()
+  })
+
+  it('stays in the table when the keystroke that closed the card reaches it late', async () => {
+    await openTable()
+    ;(document.querySelector('.ktv-row-body .ktv-open') as HTMLElement).click()
+    await settle()
+
+    // The keystroke begins here...
+    const escape = new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+    // ...the host closes its own task view on it, and the mutation telling us so is
+    // delivered before our listener is called, which is the order a real board gives.
+    closeFakeTaskView()
+    await settle()
+    document.dispatchEvent(escape)
+
+    expect(document.querySelector('kt-taskview')).not.toBeNull()
+    expect(document.querySelector('.ktv-root')).not.toBeNull()
+  })
+})
+
+describe('inspect()', () => {
+  it('reports on the page whether or not a card is open, without throwing', async () => {
+    const quiet = vi.spyOn(console, 'log').mockImplementation(() => undefined)
+    try {
+      removeHeader()
+      installFakeKT(board, [task({ id: 1, name: 'Fix login' })])
+      installFakeCards([1])
+      const launcher = await freshLauncher()
+      launcher.installLauncher()
+      expect(() => launcher.inspect()).not.toThrow()
+
+      launchButton()?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
+      await settle()
+      ;(document.querySelector('.ktv-row-body .ktv-open') as HTMLElement).click()
+      await settle()
+      expect(() => launcher.inspect()).not.toThrow()
+    } finally {
+      quiet.mockRestore()
+    }
   })
 })

@@ -26,14 +26,16 @@ about. That risk is deliberately confined — see [Fragile points](#fragile-poin
 
 ```bash
 npm install
-npm test          # 151 tests, no browser or Kanban Tool account needed
+npm test          # 176 tests, no browser or Kanban Tool account needed
 npm run build     # -> dist/kt-table-view.js
 npm run harness   # http://localhost:5180 - the real table against fake board data
 ```
 
 `npm run harness` is the fastest way to see and click the thing. It installs the same
 fake `KT` globals the integration tests use, then loads the real extension on top.
-Add `?cards=5000` to check behaviour on a large board.
+Add `?cards=5000` to check behaviour on a large board. The fake board includes
+stand-in `<kt-task>` cards and a `<kt-taskview>` panel, so the ↗ "open card" handoff can
+be exercised there too.
 
 ## Deploying it
 
@@ -42,6 +44,20 @@ Add `?cards=5000` to check behaviour on a large board.
 No hosting needed. On a board you own, enable **Settings → Power-Ups → Developer Tools**
 (account owner or admin only), and paste the contents of `dist/kt-table-view.js` into the
 custom JavaScript box.
+
+**Check what is actually running.** Every build stamps its version and time into the
+bundle, and the first console line on a board says which one is live:
+
+```
+[kt-table-view] table view ready (build 0.1.0+2026-09-27T21:15:30Z)
+```
+
+`KTTableView.inspect()` prints the same stamp first. If it does not match the build you
+just pasted, the save did not take and the board is still serving the previous script -
+which it does silently. Saving the box has been seen to answer **500**; when that happens
+nothing changes on the board, so check the Network tab for the failing request rather
+than the extension. A paste that will not save can be bypassed by pasting the one-line
+bootstrap below instead and hosting the bundle, which is also the faster loop.
 
 For a live-reload loop while developing, paste a bootstrap instead of the bundle. Kanban
 Tool is served over HTTPS, so a `localhost` URL will be blocked as mixed content — serve
@@ -80,6 +96,9 @@ board the script detects there is no `<kt-board>` and does nothing.
 - Click a column header to sort (ascending → descending → off). Blanks always sort last.
 - Group by stage (the default, mirroring the board), swimlane, assignee, priority, card
   type, or any single-select or user custom field.
+- Click the ↗ on a row to open that card in Kanban Tool's own task view, over the table.
+  Closing the card leaves you back in the table; only if the card cannot be layered over
+  it does the table step aside and show the board.
 - Tick rows to bulk-edit them in one request. Renaming is deliberately not offered in
   bulk, and fields a card cannot be without cannot be cleared in bulk.
 - Search across every visible column, or click **Filters** for a filter box under each
@@ -98,7 +117,7 @@ src/
     currentBoard.ts works out which board is on screen
     permissions.ts  delegates to KT.currentUser.can
     persistence.ts  per-user, per-board view preferences in localStorage
-    openTask.ts     hands a card to Kanban Tool's own task view
+    openTask.ts     opens a card over the table, in KT's own task view
   model/            pure, no DOM, no KT - the testable core
     columns.ts      derives columns from board settings + custom fields
     rows.ts         task attributes -> row values + display text
@@ -123,7 +142,7 @@ used: it is a Ruby/Rake/CoffeeScript scaffold and offers nothing this needs.
 |---|---|---|
 | `src/kt/selectors.ts` | The board header markup is not a public contract | The **Table** button floats at the bottom right instead, which needs no knowledge of the markup |
 | `src/ui/overlay.ts` | The board's rect gives the top edge only; its size is scroll content | Clamped to the viewport; an unusable rect fills the screen |
-| `src/kt/openTask.ts` | No documented "open this task" call | The user is told to open the card from the board |
+| `src/kt/openTask.ts` | No documented "open this task" call, and no documented depth for the layer the task view is painted at | The depth is measured from the task view element itself; if the card still cannot be got above the table, the table closes and the board is shown, which is what it always used to do |
 | `src/kt/currentBoard.ts` | No documented way to read the on-screen board id | Four fallbacks; if all miss, the table says so instead of opening blank |
 
 The board itself is only ever hidden and shown, never modified. The worst failure is
@@ -137,8 +156,13 @@ commented `CONFIRM`, and cheap to correct.
 1. ~~**Board header selector**~~ — **confirmed**: the button goes in the navbar's
    `.top-right-pane ._links` group, beside Share / Settings / Help. Floats if absent.
 2. ~~**Board id source**~~ — **confirmed**: `<kt-board data-board-id="…">`. Handled.
-3. **Task element id attribute** — `ID_ATTRIBUTES` in `src/kt/openTask.ts`.
-4. **Custom field write formats** — the API docs specify read formats but not writes for
+3. **Task element id attribute** — `ID_ATTRIBUTES` in `src/kt/openTask.ts`. One of the
+   candidates matches on a real board; opening a card logs which one, so the console
+   settles it.
+4. ~~**The open card's element**~~ — **confirmed**: it is `<kt-taskview>`, it layers
+   over the table, and closing it **hides** that element rather than removing it.
+   `src/kt/openTask.ts` watches for every way of hiding one, and removal too.
+5. **Custom field write formats** — the API docs specify read formats but not writes for
    `select`, `user`, `date` and multi-value fields. `src/model/format.ts` assumes a plain
    string, a user id, `Y-m-d`, and comma-separated values respectively. Edit one custom
    field of each type and confirm the value lands on the card.
@@ -176,6 +200,25 @@ account. Each has a regression test in `test/integration/launcher.test.ts`.
   scrolling is locked while it is open.
 - **`<kt-board>` carries `data-board-id`** (and `data-offset-top`), which settles how the
   on-screen board is identified.
+- **Closing a card hides `<kt-taskview>`, it does not remove it.** So "is the card still
+  open?" is a question about computed styles, not about the DOM tree: the element going
+  away, `display: none` from anywhere, the host writing over the inline `visibility` we
+  set, or a rect that has gone.
+- **The board cannot be revealed while a card is open, even though that would make
+  hiding unambiguous.** The task view is rendered *inside* the board, so the table has
+  to drop below the board's own stacking context to let the card paint over it - and a
+  revealed board at that depth paints over the table, putting the user back on the board
+  view. The board therefore stays hidden and the card alone is brought back with
+  `visibility: visible`, the one hiding switch a descendant can override. The cost is one
+  blind spot, named in `src/kt/openTask.ts`: while the board is hidden, a card closed by
+  a *class* that sets `visibility` cannot be told from one hidden by inheritance.
+- **The keystroke that closes the card used to close the table too.** The host closes its
+  task view on Escape, and the `MutationObserver` telling us so is delivered *between two
+  listeners for that one keydown* - so our handler ran with the card already recorded as
+  closed and took the table down as well, dropping the user two levels out to the board.
+  The Escape handler now listens in the capture phase and treats a card that closed after
+  the keystroke began as the owner of that keystroke (`taskViewOwnsEscape`), with a
+  regression test that fails if either half is removed.
 - **Hiding the board with `display: none` collapsed its parent**, so an overlay sized
   `absolute; inset: 0` inside that parent came out 0x0 and the table looked like an empty
   page. The board is now hidden with `visibility: hidden` (keeping its box, so it stays
@@ -185,14 +228,16 @@ account. Each has a regression test in `test/integration/launcher.test.ts`.
 
 ## Testing
 
-`npm test` runs 151 tests with no browser and no account:
+`npm test` runs 176 tests with no browser and no account:
 
 - **Model tests** cover column derivation from a board fixture with a custom field of
   every type, value parse/format round-trips, sorting per type, filtering, and grouping.
 - **Integration tests** drive the real overlay against a fake `KT` global in a DOM:
   mounting and restoring the board, live updates arriving from the models, every editing
   path including rejected writes rolling back, permission-gated read-only cells, bulk
-  updates, and row windowing on a 2000-card board.
+  updates, row windowing on a 2000-card board, and opening a card over the table - the
+  layering, both shapes of task view, every way the host might close one, the Escape
+  race, why the board stays hidden, and each fallback to showing the board.
 
 The fake in `test/integration/fakeKT.ts` is a faithful shape of the documented SDK, not a
 mock of our own calls — if the real SDK differs, these tests are what should catch it.

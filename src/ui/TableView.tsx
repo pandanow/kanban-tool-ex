@@ -15,7 +15,7 @@ import { sortRows } from '../model/sorting'
 import type { Row } from '../model/rows'
 import { saveCell } from '../edit/save'
 import { bulkUpdate } from '../edit/bulk'
-import { openTask } from '../kt/openTask'
+import { openTask, type TableLayer } from '../kt/openTask'
 import { getKT } from '../kt/env'
 import { Toolbar } from './Toolbar'
 import { Table } from './Table'
@@ -24,11 +24,11 @@ import { BulkBar } from './BulkBar'
 export interface TableViewProps {
   store: BoardStore
   onClose: () => void
-  /** Reveals the board again - needed before handing a card to the native task view. */
-  showBoard: () => void
+  /** Lets a card open over the table - see src/kt/openTask.ts. */
+  layer: TableLayer
 }
 
-export function TableView({ store, onClose, showBoard }: TableViewProps): JSX.Element {
+export function TableView({ store, onClose, layer }: TableViewProps): JSX.Element {
   const boardId = store.board.get('id')
   const userId = getKT()?.currentUser?.get('id') as number | undefined
 
@@ -238,7 +238,7 @@ export function TableView({ store, onClose, showBoard }: TableViewProps): JSX.El
         onToggleRow={onToggleRow}
         onToggleAll={onToggleAll}
         onCommit={onCommit}
-        onOpenTask={(taskId) => openTask(taskId, showBoard)}
+        onOpenTask={(taskId) => void openTask(taskId, layer)}
       />
     </>
   )

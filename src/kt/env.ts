@@ -18,6 +18,15 @@ export function getJQuery(): JQueryStatic | undefined {
   return window.jQuery ?? window.$
 }
 
+declare const __KTV_BUILD__: string | undefined
+
+/**
+ * Which build this is, stamped in by vite.config.ts. Printed at startup and by
+ * `inspect()`, because a board can quietly keep serving an older bundle when saving a
+ * new one fails - and then every symptom is the old build's, not the new one's.
+ */
+export const BUILD: string = typeof __KTV_BUILD__ === 'string' ? __KTV_BUILD__ : 'dev'
+
 export const LOG_PREFIX = '[kt-table-view]'
 
 export function log(...args: unknown[]): void {
