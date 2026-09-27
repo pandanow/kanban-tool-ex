@@ -171,15 +171,15 @@ The board itself is only ever hidden and shown, never modified. The worst failur
 
 ## Confirm on the pilot board
 
-Four things could not be verified without a real Kanban Tool account. Each is isolated,
-commented `CONFIRM`, and cheap to correct.
+Six things could not be verified without a real Kanban Tool account. Five are now
+settled on the pilot board; the last is the only `CONFIRM` left in the source.
 
 1. ~~**Board header selector**~~ — **confirmed**: the button goes in the navbar's
    `.top-right-pane ._links` group, beside Share / Settings / Help. Floats if absent.
 2. ~~**Board id source**~~ — **confirmed**: `<kt-board data-board-id="…">`. Handled.
-3. **Task element id attribute** — `ID_ATTRIBUTES` in `src/kt/openTask.ts`. One of the
-   candidates matches on a real board; opening a card logs which one, so the console
-   settles it.
+3. ~~**Task element id attribute**~~ — **confirmed**: `<kt-task data-task-id="…">`,
+   which `ID_ATTRIBUTES` in `src/kt/openTask.ts` now tries first. The rest stay as
+   fallbacks, and opening a card still logs which one matched.
 4. ~~**The activity panel's selector**~~ — **confirmed**: `div.kt-taskview-sidebar`,
    a sibling of `kt-cover`, both fixed at z-index 1054. `PANEL_CANDIDATES` in
    `src/kt/openTask.ts` names it. Each surface found is logged (`card surface: …`) and

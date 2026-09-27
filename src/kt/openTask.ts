@@ -32,14 +32,18 @@
 // that always work are the element going away, `display: none` from anywhere, the host
 // writing over the inline `visibility` we set, and a rect that has gone.
 //
-// CONFIRM ON THE PILOT BOARD: the attribute `<kt-task>` carries its task id in - the
-// candidates in ID_ATTRIBUTES cover the usual shapes; replace them with the real one
-// once known.
+// CONFIRMED on the pilot board: `<kt-task>` carries its id in `data-task-id`, which
+// ID_ATTRIBUTES tries first; the other candidates stay as fallbacks, and every open
+// logs which one matched.
 
 import { log, notify, warn } from './env'
 import { BOARD_ELEMENT, NAVBAR_SELECTOR } from './selectors'
 
-const ID_ATTRIBUTES = ['data-id', 'data-task-id', 'task-id', 'id'] as const
+/**
+ * How a `<kt-task>` carries its id. `data-task-id` is what the pilot board uses and is
+ * tried first; the rest stay as fallbacks, and opening a card logs which one matched.
+ */
+const ID_ATTRIBUTES = ['data-task-id', 'data-id', 'task-id', 'id'] as const
 
 /** Documented custom element wrapping the host's own task view. */
 const TASKVIEW_ELEMENT = 'kt-taskview'
