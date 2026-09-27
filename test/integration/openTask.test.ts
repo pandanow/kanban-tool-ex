@@ -72,9 +72,8 @@ describe('opening a card from the table', () => {
   })
 
   it('leaves the board hidden the whole time', async () => {
-    // Deliberate, and the reason a card opens over the table at all: the table has to
-    // drop below the stacking context the task view sits in, which on a real board is
-    // the board's own. A board revealed behind it would paint over the table.
+    // On the pilot board the card's surfaces are built beside the board rather than in
+    // it, so there is nothing to gain by revealing it and a table-sized hole to lose.
     await openFirstCard()
     expect(boardElement.style.visibility).toBe('hidden')
   })
@@ -142,15 +141,14 @@ describe('a task view rendered inside the board', () => {
     expect(boardElement.style.visibility).toBe('')
   })
 
-  it("drops below the board's own stacking context, which is why the board stays hidden", async () => {
+  it('measures through a positioned ancestor, which is what a child cannot escape', async () => {
     const host = document.getElementById('board-host') as HTMLElement
     host.style.position = 'relative'
     host.style.zIndex = '400'
 
     await openFirstCard()
     // The task view cannot escape the context its ancestors establish, so that is the
-    // depth the table has to beat - and a board revealed at 400 would then paint over
-    // a table at 399, which is the whole reason the board stays hidden.
+    // depth the table has to beat - its own z-index would not have been enough.
     expect(root()?.style.zIndex).toBe('399')
     expect(boardElement.style.visibility).toBe('hidden')
   })
@@ -168,7 +166,8 @@ describe('a task view rendered inside the board', () => {
 })
 
 describe("the card's other surfaces - the activity panel and its comment box", () => {
-  const panel = (): HTMLElement | null => document.getElementById('kt-side_panel')
+  const panel = (): HTMLElement | null =>
+    document.querySelector('.kt-taskview-sidebar') as HTMLElement | null
 
   it('drops the table below the panel as well as the task view', async () => {
     await start({ sidePanel: 'immediate' })
@@ -198,15 +197,28 @@ describe("the card's other surfaces - the activity panel and its comment box", (
     expect(panel()?.style.visibility).toBe('')
   })
 
-  it('never mistakes the page chrome for part of the card', async () => {
-    // The navbar's own pane is `.top-right-pane.kt-side-panel-slide` on a real board,
-    // which matches the panel candidates and would drag the table down to nothing.
+  it('never mistakes the page furniture for part of the card', async () => {
+    // All three of these carry `kt-side-panel-slide` on a real board and none is part of
+    // a card: the navbar pane, the wrapper around the board, and a fixed card legend at
+    // z-index 10 - which a loose selector would have put the table underneath.
     await start()
-    const chrome = document.querySelector('.kt-side-panel-slide')
-    expect(chrome).not.toBeNull()
+    expect(document.querySelectorAll('.kt-side-panel-slide')).toHaveLength(3)
 
     await openFirstCard()
     expect(root()?.style.zIndex).toBe('1049')
+  })
+
+  it('finds the activity list and the comment box inside the panel it layers', async () => {
+    await start({ sidePanel: 'immediate' })
+    await openFirstCard()
+
+    // What the user actually asked for, named the way the pilot board names it.
+    const layered = panel() as HTMLElement
+    expect(layered.querySelector('.kt-activity-stream')).not.toBeNull()
+    expect(layered.querySelector('textarea')).not.toBeNull()
+    expect(Number(root()?.style.zIndex)).toBeLessThan(
+      Number(getComputedStyle(layered).zIndex),
+    )
   })
 })
 

@@ -26,7 +26,7 @@ about. That risk is deliberately confined — see [Fragile points](#fragile-poin
 
 ```bash
 npm install
-npm test          # 180 tests, no browser or Kanban Tool account needed
+npm test          # 181 tests, no browser or Kanban Tool account needed
 npm run build     # -> dist/kt-table-view.js
 npm run harness   # http://localhost:5180 - the real table against fake board data
 ```
@@ -171,7 +171,7 @@ The board itself is only ever hidden and shown, never modified. The worst failur
 
 ## Confirm on the pilot board
 
-Five things could not be verified without a real Kanban Tool account. Each is isolated,
+Four things could not be verified without a real Kanban Tool account. Each is isolated,
 commented `CONFIRM`, and cheap to correct.
 
 1. ~~**Board header selector**~~ — **confirmed**: the button goes in the navbar's
@@ -180,11 +180,10 @@ commented `CONFIRM`, and cheap to correct.
 3. **Task element id attribute** — `ID_ATTRIBUTES` in `src/kt/openTask.ts`. One of the
    candidates matches on a real board; opening a card logs which one, so the console
    settles it.
-4. **The activity panel's selector** — `PANEL_CANDIDATES` in `src/kt/openTask.ts`. An
-   open card is more than `<kt-taskview>`: the activity list and comment box are in a
-   side panel beside it, which has to be layered too. Run `KTTableView.probeCard()` with
-   a card open and replace the candidates with what it names. Each match is logged
-   (`card surface: …`), and the page's own chrome is excluded by name.
+4. ~~**The activity panel's selector**~~ — **confirmed**: `div.kt-taskview-sidebar`,
+   a sibling of `kt-cover`, both fixed at z-index 1054. `PANEL_CANDIDATES` in
+   `src/kt/openTask.ts` names it. Each surface found is logged (`card surface: …`) and
+   each candidate turned down says why, so a future rename is one console line away.
 5. ~~**The open card's element**~~ — **confirmed**: it is `<kt-taskview>`, it layers
    over the table, and closing it **hides** that element rather than removing it.
    `src/kt/openTask.ts` watches for every way of hiding one, and removal too.
@@ -230,14 +229,15 @@ account. Each has a regression test in `test/integration/launcher.test.ts`.
   open?" is a question about computed styles, not about the DOM tree: the element going
   away, `display: none` from anywhere, the host writing over the inline `visibility` we
   set, or a rect that has gone.
-- **The board cannot be revealed while a card is open, even though that would make
-  hiding unambiguous.** The task view is rendered *inside* the board, so the table has
-  to drop below the board's own stacking context to let the card paint over it - and a
-  revealed board at that depth paints over the table, putting the user back on the board
-  view. The board therefore stays hidden and the card alone is brought back with
-  `visibility: visible`, the one hiding switch a descendant can override. The cost is one
-  blind spot, named in `src/kt/openTask.ts`: while the board is hidden, a card closed by
-  a *class* that sets `visibility` cannot be told from one hidden by inheritance.
+- **An open card is two body-level elements, neither of them inside the board.**
+  `kt-cover` (fixed, z-index 1054) holds `<kt-taskview>`, and `div.kt-taskview-sidebar`
+  (fixed, z-index 1054) holds the activity list and the comment box beside it. The table
+  drops below the lowest of them, so both paint over it.
+- **A loose panel selector finds the furniture.** `kt-side-panel-slide` is on the navbar
+  pane, on the wrapper around the whole board, and on a fixed card legend at z-index 10 -
+  and matching that legend would have put the table at z-index 9, underneath it. The
+  candidates in `src/kt/openTask.ts` are named, not pattern-matched, and the fake board
+  in the tests carries all three decoys so the mistake fails a test.
 - **The keystroke that closes the card used to close the table too.** The host closes its
   task view on Escape, and the `MutationObserver` telling us so is delivered *between two
   listeners for that one keydown* - so our handler ran with the card already recorded as
@@ -254,7 +254,7 @@ account. Each has a regression test in `test/integration/launcher.test.ts`.
 
 ## Testing
 
-`npm test` runs 180 tests with no browser and no account:
+`npm test` runs 181 tests with no browser and no account:
 
 - **Model tests** cover column derivation from a board fixture with a custom field of
   every type, value parse/format round-trips, sorting per type, filtering, and grouping.

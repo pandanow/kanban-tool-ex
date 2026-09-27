@@ -13,21 +13,24 @@
 // `kt-taskview:open` as an event, but it exposes no documented "open this task" call.
 // So we click the card's own element, which is what a user would do.
 //
-// Confirmed on the pilot board: the open card is a `<kt-taskview>` that the host
-// renders inside the board, and closing it HIDES that element rather than removing it.
+// Confirmed on the pilot board, with a card open (KTTableView.probeCard()):
 //
-// The board therefore stays hidden while a card is open, and the card is brought back
-// on its own with `visibility: visible` - the one hiding switch a descendant can
-// override. Revealing the board instead, which would make hiding unambiguous, does not
-// work: the table has to drop below the stacking context the task view sits in, which
-// is the board's own, so a revealed board paints over the table and the user is looking
-// at the board again. That was tried, and is what this comment is for.
+//   body > kt-cover.has-sidebar-open     fixed, z-index 1054, holds <kt-taskview>
+//   body > div.kt-taskview-sidebar.open  fixed, z-index 1054, the activity list
 //
-// What that costs is one blind spot, named here so it is not rediscovered: while the
-// board is hidden, `visibility: hidden` inherited from it says nothing about the host's
-// intent, so a card closed by a *class* that sets `visibility` reads as still open. The
-// signals that do work are the element going away, `display: none` from anywhere, the
-// host writing over the inline `visibility` we set, and a rect that has gone.
+// So the card is built beside the board, not inside it, and closing it HIDES those
+// elements rather than removing them. The board is left hidden while a card is open
+// simply because there is no reason to reveal it - the card's own surfaces are not in
+// it, and the table covers it either way.
+//
+// The visibility handling below is therefore a safety net rather than the main event: a
+// panel that IS rendered inside the board would inherit `visibility: hidden` from us,
+// and is brought back with `visibility: visible`, the one hiding switch a descendant
+// can override. Where that applies it costs one blind spot, named here so it is not
+// rediscovered: inherited hiding says nothing about the host's intent, so such a
+// surface closed by a *class* that sets `visibility` reads as still open. The signals
+// that always work are the element going away, `display: none` from anywhere, the host
+// writing over the inline `visibility` we set, and a rect that has gone.
 //
 // CONFIRM ON THE PILOT BOARD: the attribute `<kt-task>` carries its task id in - the
 // candidates in ID_ATTRIBUTES cover the usual shapes; replace them with the real one
@@ -42,22 +45,27 @@ const ID_ATTRIBUTES = ['data-id', 'data-task-id', 'task-id', 'id'] as const
 const TASKVIEW_ELEMENT = 'kt-taskview'
 
 /**
- * An open card is not one element. On the board, the activity list and its comment box
- * are in a side panel beside the task view, so "open the card over the table" has to
- * bring every surface the host shows, not just `<kt-taskview>`.
+ * An open card is not one element. Confirmed on the pilot board, with a card open:
  *
- * CONFIRM ON THE PILOT BOARD: which of these is the activity panel - run
- * `KTTableView.probeCard()` with a card open and replace the list with what it names.
- * A candidate that matches nothing costs nothing: the task view alone is layered, as
- * before. Every match is logged, so a wrong one says its own name in the console.
+ *   body > kt-cover.has-sidebar-open     fixed, z-index 1054  - holds <kt-taskview>
+ *   body > div.kt-taskview-sidebar.open  fixed, z-index 1054  - the activity list,
+ *                                        .kt-activity-stream and the comment textarea
+ *
+ * The sidebar is a sibling of the cover, not part of the task view, so layering the
+ * task view alone leaves the activity list under the table. Both are matched here (the
+ * cover through the task view's own measurement, the sidebar through this list).
+ *
+ * Kept narrow on purpose. An earlier, looser `[class*="side-panel"]` matched three
+ * things on a real board that have nothing to do with a card: the navbar's
+ * `.top-right-pane.kt-side-panel-slide`, the page wrapper `div.kt-side-panel-slide`
+ * that contains the whole board, and `table.kt-extensions-card_legend` - a fixed footer
+ * at z-index 10, which would have dragged the table down to 9 and painted the legend
+ * over it. Guess wide here and the table ends up behind the furniture.
  */
 const PANEL_CANDIDATES = [
-  '[id*="side_panel"]',
-  '[class*="side_panel"]',
-  '[id*="side-panel"]',
-  '[class*="side-panel"]',
-  '[id*="task_view"]',
-  '[class*="task_view"]',
+  '.kt-taskview-sidebar',
+  // The same panel if the prefix is ever renamed; still specific to a task view.
+  '[class*="taskview-sidebar"]',
 ] as const
 
 /** Below this, a panel is a sliver or a collapsed shell rather than something shown. */
@@ -208,24 +216,43 @@ function findTaskViewElement(root: ParentNode = document): HTMLElement | null {
  * found - and has to not already be part of the task view or an ancestor of it, which
  * the task view's own measurement covers.
  */
-function findPanels(taskview: HTMLElement, layer: TableLayer): HTMLElement[] {
+function findPanels(taskview: HTMLElement, layer: TableLayer, explain = false): HTMLElement[] {
   const board = document.querySelector(BOARD_ELEMENT)
   const navbar = document.querySelector(NAVBAR_SELECTOR)
   const found: HTMLElement[] = []
 
+  const reject = (element: HTMLElement, why: string): boolean => {
+    if (explain) log(`not a card surface (${why}):`, element)
+    return false
+  }
+
   for (const selector of PANEL_CANDIDATES) {
     for (const element of document.querySelectorAll<HTMLElement>(selector)) {
       if (found.includes(element)) continue
-      if (element === taskview || element.contains(taskview) || taskview.contains(element)) continue
+      if (element === taskview || element.contains(taskview) || taskview.contains(element)) {
+        continue
+      }
       if (layer.owns(element)) continue
-      if (board && element.contains(board)) continue
-      if (navbar && (navbar.contains(element) || element.contains(navbar))) continue
-      if (!isShowing(element, false)) continue
+      if (board && element.contains(board)) {
+        reject(element, 'wraps the board')
+        continue
+      }
+      if (navbar && (navbar.contains(element) || element.contains(navbar))) {
+        reject(element, 'page chrome')
+        continue
+      }
+      if (!isShowing(element, false)) {
+        reject(element, 'not shown')
+        continue
+      }
       // A measured sliver is a collapsed shell, not a panel. A rect of nothing at all
       // is no measurement - the same reading of a zero rect as everywhere else here.
       const rect = element.getBoundingClientRect()
       const measured = rect.width > 0 && rect.height > 0
-      if (measured && (rect.width < MIN_PANEL_PX || rect.height < MIN_PANEL_PX)) continue
+      if (measured && (rect.width < MIN_PANEL_PX || rect.height < MIN_PANEL_PX)) {
+        reject(element, `only ${Math.round(rect.width)}x${Math.round(rect.height)}`)
+        continue
+      }
       found.push(element)
     }
   }
@@ -351,9 +378,9 @@ function watchOpenCard(state: OpenState, onClosed: () => void): () => void {
  * panel can arrive a moment after the card does - and drops the table below it. Runs on
  * the same beat as the watch for the card closing, so a late panel costs one tick.
  */
-function syncSurfaces(state: OpenState): void {
+function syncSurfaces(state: OpenState, explain = false): void {
   let depth = state.depth
-  for (const panel of findPanels(state.taskview, state.layer)) {
+  for (const panel of findPanels(state.taskview, state.layer, explain)) {
     if (state.surfaces.has(panel)) continue
     log('card surface:', panel)
     state.surfaces.set(panel, forceVisible(panel))
@@ -409,12 +436,14 @@ function layerOver(taskview: HTMLElement, layer: TableLayer): boolean {
     depth: behindZIndex(taskview),
     stopWatching: () => undefined,
   }
-  // The panel the activity list lives in is often a sibling of the task view rather
-  // than part of it, and may arrive a moment later; this picks up whatever is there
-  // now, and the watch keeps looking.
-  syncSurfaces(state)
+  // The panel the activity list lives in is a sibling of the task view, not part of it,
+  // and may arrive a moment later; this picks up whatever is there now, and the watch
+  // keeps looking. The first pass says why it turned anything down - one console line
+  // per open is what makes a wrong selector obvious instead of invisible.
+  syncSurfaces(state, true)
   state.stopWatching = watchOpenCard(state, closeTaskView)
   current = state
+  log(`card open over the table: ${state.surfaces.size} surface(s), table at ${state.depth}`)
   return true
 }
 

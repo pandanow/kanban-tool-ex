@@ -215,6 +215,11 @@ export function installFakeKT(
  * Mirrors the markup a real board actually has: a Bootstrap 2.3.2 navbar whose
  * `.top-right-pane ._links` group holds the board-level links, and a <kt-board>
  * carrying `data-board-id` whose rect is scroll content far larger than the viewport.
+ *
+ * The two `kt-side-panel-slide` elements are not decoration. On a real board that class
+ * is on the navbar pane, on the wrapper around the whole board, and on a fixed card
+ * legend at z-index 10 - none of which are part of a card, and all of which a loose
+ * panel selector picks up. They are here so that mistake fails a test.
  */
 export function setupBoardPage(): { host: HTMLElement; boardElement: HTMLElement } {
   document.body.innerHTML = `
@@ -228,9 +233,12 @@ export function setupBoardPage(): { host: HTMLElement; boardElement: HTMLElement
         </div>
       </div>
     </nav>
-    <div id="board-host">
+    <div id="board-host" class="kt-side-panel-slide">
       <kt-board data-board-id="77" data-offset-top="30"></kt-board>
     </div>
+    <table class="kt-side-panel-slide kt-extensions-card_legend" style="position: fixed; z-index: 10">
+      <tbody><tr><td>Card legend</td></tr></tbody>
+    </table>
   `
   const host = document.getElementById('board-host') as HTMLElement
   const boardElement = document.querySelector('kt-board') as HTMLElement
@@ -255,7 +263,7 @@ export interface FakeCardsOptions {
    * makes it arrive after the card, which is the awkward case.
    */
   sidePanel?: 'immediate' | 'late'
-  /** The side panel's z-index. Below the task view's, as a second surface may well be. */
+  /** The side panel's z-index. On the pilot board it equals the card cover's. */
   sidePanelZIndex?: number
   /** The task view's z-index. Defaults to Bootstrap 2.3.2's modal layer, as the host
    *  page uses it. `null` renders a task view that is not layered at all. */
@@ -319,15 +327,25 @@ function openFakeTaskView(taskId: number, { attach = 'body', zIndex = 1050 }: Fa
   host?.appendChild(view)
 }
 
+/**
+ * The activity sidebar, named as the pilot board names it: a direct child of <body>,
+ * `position: fixed`, beside the card rather than inside it, holding the activity stream
+ * and the comment box. `sidePanelZIndex` is deliberately settable below the card's, so
+ * the "table drops below the lowest surface" rule is exercised rather than assumed.
+ */
 function openFakeSidePanel({ attach = 'body', sidePanelZIndex = 1040 }: FakeCardsOptions): void {
-  document.getElementById('kt-side_panel')?.remove()
+  document.querySelector('.kt-taskview-sidebar')?.remove()
 
   const panel = document.createElement('div')
-  panel.id = 'kt-side_panel'
+  panel.className = 'kt-taskview-sidebar open'
   panel.style.cssText =
-    'position: fixed; top: 12%; right: 0; width: 22%; height: 60%; padding: 12px;' +
+    'position: fixed; top: 0; right: 0; width: 22%; height: 100%; padding: 12px;' +
     `background: #f7f8fa; border-left: 1px solid #9aa4b5; z-index: ${sidePanelZIndex};`
-  panel.innerHTML = '<h4>Activity</h4><textarea placeholder="Write a comment"></textarea>'
+  panel.innerHTML =
+    '<div class="sidebar-content"><div class="kt-activity-stream"><ul class="stream">' +
+    '<li class="activity comment">A comment</li></ul></div>' +
+    '<div class="kt-extensions-collaboration_pane-comment_form">' +
+    '<textarea placeholder="Write a comment"></textarea></div></div>'
 
   const host = attach === 'board' ? document.querySelector('kt-board') : document.body
   host?.appendChild(panel)
@@ -337,6 +355,6 @@ function openFakeSidePanel({ attach = 'body', sidePanelZIndex = 1040 }: FakeCard
 export function closeFakeTaskView(): void {
   const view = document.querySelector('kt-taskview') as HTMLElement | null
   if (view) view.style.display = 'none'
-  const panel = document.getElementById('kt-side_panel')
+  const panel = document.querySelector('.kt-taskview-sidebar') as HTMLElement | null
   if (panel) panel.style.display = 'none'
 }
