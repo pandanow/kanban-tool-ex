@@ -1,0 +1,26 @@
+{
+  "name": "kt-table-view",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Monday.com-style table view for Kanban Tool cloud boards, delivered as a Kanban Tool SDK extension.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit && vite build",
+    "dev": "vite build --watch --mode development",
+    "serve": "vite preview --outDir dist --port 5173",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "harness": "vite --config vite.harness.config.ts"
+  },
+  "dependencies": {
+    "preact": "^10.24.3"
+  },
+  "devDependencies": {
+    "@testing-library/preact": "^3.2.4",
+    "happy-dom": "^20.14.5",
+    "typescript": "^5.6.3",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.2"
+  }
+}

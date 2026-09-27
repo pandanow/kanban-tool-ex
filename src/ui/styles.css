@@ -1,0 +1,515 @@
+/* Everything is scoped under .ktv-root and prefixed .ktv-.
+   The host page loads Bootstrap 2.3.2 and its own global rules, so we never style bare
+   element selectors and we reset the few properties Bootstrap sets on elements we use
+   (input, select, button, table cells) instead of inheriting surprises. */
+
+/* The !important declarations below are deliberate, and not defensive habit.
+   Kanban Tool's custom-theme extension hides direct children of <body> that it does not
+   recognise, so the themed background shows through. Our injected container is one of
+   those: it mounted at the correct size and position with a correct z-index, and still
+   computed `visibility: hidden` from a host rule that outranks a plain class selector.
+   These five properties decide whether the overlay is painted at all, so they are the
+   ones we refuse to lose. Everything else stays overridable. */
+.ktv-root {
+  /* Fixed to the board's measured rect, set inline by src/ui/overlay.ts - never sized
+     by a parent, so a collapsing host cannot reduce it to nothing. */
+  position: fixed !important;
+  z-index: 2147483000 !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  display: flex !important;
+  flex-direction: column;
+  overflow: hidden;
+  background: #ffffff;
+  color: #1f2430;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+  box-sizing: border-box;
+}
+
+.ktv-root *,
+.ktv-root *::before,
+.ktv-root *::after {
+  box-sizing: border-box;
+}
+
+/* The same host rule can reach our descendants if it is written as a descendant
+   selector rather than a child one. We never hide anything with `visibility`, so
+   forcing it here costs us nothing. */
+.ktv-root * {
+  visibility: visible !important;
+}
+
+.ktv-root input,
+.ktv-root select,
+.ktv-root textarea,
+.ktv-root button {
+  margin: 0;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+  height: auto;
+  min-height: 0;
+  border-radius: 3px;
+  box-shadow: none;
+}
+
+/* ---------- toolbar ---------- */
+
+.ktv-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #dfe3ea;
+  background: #f7f8fa;
+  flex: 0 0 auto;
+}
+
+.ktv-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ktv-toolbar-label {
+  color: #5b6577;
+  white-space: nowrap;
+}
+
+.ktv-toolbar-spacer {
+  flex: 1 1 auto;
+}
+
+.ktv-input,
+.ktv-select {
+  padding: 4px 6px;
+  border: 1px solid #c8cedb;
+  background: #ffffff;
+  width: auto;
+}
+
+.ktv-input:focus,
+.ktv-select:focus {
+  outline: 2px solid #2f7de1;
+  outline-offset: -1px;
+  border-color: #2f7de1;
+}
+
+.ktv-search {
+  min-width: 180px;
+}
+
+.ktv-button {
+  padding: 4px 10px;
+  border: 1px solid #c8cedb;
+  background: #ffffff;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ktv-button:hover {
+  background: #eef1f6;
+}
+
+.ktv-button-active {
+  border-color: #2f7de1;
+  color: #2f7de1;
+  background: #eaf2fd;
+}
+
+.ktv-button-primary {
+  border-color: #2f7de1;
+  background: #2f7de1;
+  color: #ffffff;
+}
+
+.ktv-button-primary:hover {
+  background: #2467bd;
+}
+
+.ktv-count {
+  color: #5b6577;
+  white-space: nowrap;
+}
+
+/* ---------- column picker ---------- */
+
+.ktv-popover-host {
+  position: relative;
+}
+
+.ktv-popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 10;
+  max-height: 320px;
+  overflow-y: auto;
+  min-width: 220px;
+  padding: 8px;
+  border: 1px solid #c8cedb;
+  border-radius: 4px;
+  background: #ffffff;
+  box-shadow: 0 6px 18px rgba(20, 28, 45, 0.18);
+}
+
+.ktv-popover-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px;
+  cursor: pointer;
+}
+
+.ktv-popover-item:hover {
+  background: #f0f3f8;
+}
+
+/* ---------- bulk edit bar ---------- */
+
+.ktv-bulkbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-bottom: 1px solid #dfe3ea;
+  background: #eaf2fd;
+  flex: 0 0 auto;
+}
+
+/* ---------- grid ---------- */
+
+.ktv-scroll {
+  flex: 1 1 auto;
+  overflow: auto;
+  position: relative;
+}
+
+.ktv-grid {
+  min-width: max-content;
+}
+
+.ktv-row {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid #edf0f5;
+}
+
+/* Rows and group headers share one fixed height so the virtualizer can map a scroll
+   offset to an item index with plain arithmetic. */
+.ktv-row-body,
+.ktv-head {
+  height: 31px;
+}
+
+.ktv-head {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: #f7f8fa;
+  border-bottom: 1px solid #c8cedb;
+  font-weight: 600;
+  color: #454f61;
+}
+
+.ktv-row-body:nth-child(even) {
+  background: #fbfcfd;
+}
+
+.ktv-row-body:hover {
+  background: #f2f6fc;
+}
+
+.ktv-row-selected,
+.ktv-row-selected:hover {
+  background: #e6f0fd;
+}
+
+.ktv-cell {
+  flex: 0 0 auto;
+  padding: 0;
+  border-right: 1px solid #edf0f5;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  min-height: 30px;
+}
+
+.ktv-head .ktv-cell {
+  padding: 6px 8px;
+  cursor: pointer;
+  user-select: none;
+  gap: 4px;
+}
+
+.ktv-head .ktv-cell-static {
+  cursor: default;
+}
+
+.ktv-sort-marker {
+  color: #2f7de1;
+}
+
+.ktv-cell-gutter {
+  flex: 0 0 auto;
+  width: 34px;
+  justify-content: center;
+  border-right: 1px solid #edf0f5;
+  display: flex;
+  align-items: center;
+}
+
+.ktv-cell-value {
+  width: 100%;
+  padding: 6px 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: text;
+  min-height: 30px;
+  display: block;
+}
+
+.ktv-cell-readonly .ktv-cell-value {
+  cursor: default;
+  color: #5b6577;
+}
+
+.ktv-cell-editing {
+  outline: 2px solid #2f7de1;
+  outline-offset: -2px;
+  /* The multiline editor grows past the fixed row height. */
+  overflow: visible;
+  position: relative;
+  z-index: 4;
+}
+
+.ktv-cell-editing textarea.ktv-cell-editor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 92px;
+  border: 1px solid #2f7de1;
+  background: #ffffff;
+  resize: vertical;
+}
+
+.ktv-cell-editor {
+  width: 100%;
+  border: 0;
+  padding: 5px 7px;
+  background: #ffffff;
+}
+
+.ktv-cell-editor:focus {
+  outline: none;
+}
+
+.ktv-cell-saving {
+  opacity: 0.55;
+}
+
+.ktv-link {
+  color: #2f7de1;
+  text-decoration: none;
+}
+
+.ktv-link:hover {
+  text-decoration: underline;
+}
+
+.ktv-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+.ktv-name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ktv-open {
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  color: #7a8496;
+  cursor: pointer;
+  padding: 0 4px;
+  visibility: hidden;
+}
+
+.ktv-row-body:hover .ktv-open {
+  visibility: visible;
+}
+
+.ktv-open:hover {
+  color: #2f7de1;
+}
+
+.ktv-tag {
+  display: inline-block;
+  padding: 1px 6px;
+  margin-right: 4px;
+  border-radius: 9px;
+  background: #e8ecf3;
+  color: #454f61;
+  font-size: 11px;
+}
+
+.ktv-progress {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #e8ecf3;
+  overflow: hidden;
+}
+
+.ktv-progress-fill {
+  height: 100%;
+  background: #4aa96c;
+}
+
+.ktv-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 8px;
+}
+
+.ktv-progress-text {
+  flex: 0 0 auto;
+  color: #5b6577;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The filter row sits directly under the sticky header and scrolls with it. */
+.ktv-filterrow {
+  position: sticky;
+  top: 31px;
+  z-index: 3;
+  height: 29px;
+  background: #fbfcfd;
+  border-bottom: 1px solid #c8cedb;
+}
+
+.ktv-filter-input {
+  width: 100%;
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 3px 7px;
+}
+
+.ktv-filter-input:hover {
+  border-color: #dfe3ea;
+  background: #ffffff;
+}
+
+.ktv-filter-input:focus {
+  outline: none;
+  border-color: #2f7de1;
+  background: #ffffff;
+}
+
+/* ---------- group headers ---------- */
+
+/* Not sticky: with a virtualized list every group header shares one parent, so sticky
+   headers would all pile up at the top of the scroller instead of one at a time. */
+.ktv-group {
+  height: 31px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: #eef1f6;
+  border-top: 1px solid #dfe3ea;
+  border-bottom: 1px solid #dfe3ea;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ktv-group-caret {
+  color: #7a8496;
+  width: 10px;
+}
+
+.ktv-group-count {
+  font-weight: 400;
+  color: #5b6577;
+}
+
+/* ---------- states ---------- */
+
+.ktv-empty {
+  padding: 32px;
+  text-align: center;
+  color: #5b6577;
+}
+
+.ktv-spacer {
+  width: 100%;
+}
+
+/* ---------- entry button ---------- */
+
+.ktv-launch {
+  display: inline-block;
+  padding: 3px 10px;
+  margin-left: 6px;
+  border: 1px solid #c8cedb;
+  border-radius: 3px;
+  background: #ffffff;
+  color: #1f2430;
+  font-size: 12px;
+  line-height: 18px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.ktv-launch:hover {
+  background: #eef1f6;
+}
+
+/* In the navbar: inherit the host page's own link styling, and add nothing that would
+   make it look different from Share / Settings / Help beside it. */
+.ktv-launch-inline {
+  cursor: pointer;
+}
+
+/* Used when no board-header mount point matched. Fixed to the viewport so it needs no
+   knowledge of Kanban Tool's markup, and sits clear of the board's own chrome. */
+.ktv-launch-floating {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 2147482999;
+  margin: 0;
+  padding: 8px 16px;
+  border: 1px solid #2f7de1;
+  border-radius: 20px;
+  background: #2f7de1;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 3px 10px rgba(20, 28, 45, 0.28);
+}
+
+.ktv-launch-floating:hover {
+  background: #2467bd;
+}
+
+/* The table has its own "Back to board" control, and the floating launcher would
+   otherwise sit on top of the overlay. */
+body.ktv-open .ktv-launch-floating {
+  display: none;
+}

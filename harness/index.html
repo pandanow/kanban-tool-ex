@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Table view - dev harness</title>
+    <style>
+      /* Rough stand-in for the host page chrome, so the overlay is exercised the way it
+         will be on a board: inside a positioned container, under a page header. */
+      body {
+        margin: 0;
+        font: 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: #eceff4;
+      }
+      .board-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 16px;
+        background: #2b3445;
+        color: #fff;
+      }
+      .board-header .actions {
+        margin-left: auto;
+      }
+      #board-host {
+        position: relative;
+        height: calc(100vh - 42px);
+      }
+      kt-board {
+        display: block;
+        height: 100%;
+        padding: 24px;
+        color: #62708a;
+      }
+      .hint {
+        max-width: 520px;
+        line-height: 1.6;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
