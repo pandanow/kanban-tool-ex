@@ -207,7 +207,7 @@ settled on the pilot board; the last two are the only `CONFIRM`s left in the sou
    `<kt-task-attachments>` was confirmed with `probeCard()`, and the heading beside it is
    found by its text. The console says once where the button went
    (`files button: beside the Attachments heading`), so a renamed heading shows up as
-   one of the fallback lines.
+   the fallback line. A card with no attachments section gets no button.
 
 ## Notes from the first real board
 

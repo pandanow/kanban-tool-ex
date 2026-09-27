@@ -110,14 +110,20 @@ describe('the Files button', () => {
     expect(all('kt-taskview .ktv-files-button')).toHaveLength(1)
   })
 
-  it('goes at the top of a card with no attachments section', async () => {
+  it('waits for the attachments section instead of parking the button elsewhere', async () => {
     await start()
     await openCardOnBoard()
     const taskview = q('kt-taskview') as HTMLElement
-    taskview.innerHTML = 'Task #1, redrawn'
+    const loaded = taskview.innerHTML
+    // The card as the host first paints it: no fields yet.
+    taskview.innerHTML = 'Task #1, loading'
+    await settle()
+    expect(all('kt-taskview .ktv-files-launch')).toHaveLength(0)
+
+    taskview.innerHTML = loaded
     await settle()
     expect(all('kt-taskview .ktv-files-button')).toHaveLength(1)
-    expect(q('kt-taskview')?.firstElementChild?.classList.contains('ktv-files-launch')).toBe(true)
+    expect(q('kt-taskview label .ktv-files-button')).not.toBeNull()
   })
 })
 

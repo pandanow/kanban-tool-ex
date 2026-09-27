@@ -652,9 +652,8 @@ body.ktv-open .ktv-launch-floating {
   letter-spacing: normal;
 }
 
-/* The fallbacks, where there is no heading to sit beside: a row of its own. */
-.ktv-files-launch--section,
-.ktv-files-launch--card {
+/* The fallback, where there is no heading to sit beside: a row of its own. */
+.ktv-files-launch--section {
   display: flex !important;
   justify-content: flex-end;
   padding: 4px 8px 0;

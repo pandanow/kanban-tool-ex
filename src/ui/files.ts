@@ -12,8 +12,9 @@
 // than inside host markup, and closes when the card does.
 //
 // Where the button goes, best first: inside the card's "Attachments" heading, beside
-// its text; before the attachments section when no heading is found; at the top of the
-// card when there is no attachments section at all. It is inside the heading rather
+// its text; before the attachments section when no heading is found. A card with no
+// attachments section yet gets no button: the host fills the card in after it opens,
+// and a button parked anywhere else in the meantime jumps when the section arrives. It is inside the heading rather
 // than after it because the heading may be a block that would push a sibling onto its
 // own line - and a button inside a `<label>` is safe, since a label does nothing when
 // the click lands on an interactive element within it.
@@ -27,7 +28,7 @@ import { FilesDialog } from './FilesDialog'
 const BUTTON_CLASS = 'ktv-files-launch'
 const BUTTON_LABEL = 'Browse files'
 
-type Placement = 'heading' | 'section' | 'card'
+type Placement = 'heading' | 'section'
 
 interface DialogState {
   container: HTMLElement
@@ -170,33 +171,31 @@ function createButton(taskview: HTMLElement, placement: Placement): HTMLElement 
 function place(taskview: HTMLElement): void {
   const heading = findAttachmentsHeading(taskview)
   const section = heading ? null : taskview.querySelector(ATTACHMENTS_ELEMENT)
-  const placement: Placement = heading ? 'heading' : section ? 'section' : 'card'
-
   const existing = taskview.querySelector<HTMLElement>(`.${BUTTON_CLASS}`)
+
+  if (!heading && !section) {
+    // Not loaded yet, or redrawn without one. Wait for the section rather than guess.
+    existing?.remove()
+    return
+  }
+
+  const placement: Placement = heading ? 'heading' : 'section'
   if (existing?.classList.contains(`${BUTTON_CLASS}--${placement}`)) {
-    const inPlace =
-      placement === 'heading'
-        ? existing.parentElement === heading
-        : placement === 'section'
-          ? existing.nextElementSibling === section
-          : existing.parentElement === taskview
+    const inPlace = heading ? existing.parentElement === heading : existing.nextElementSibling === section
     if (inPlace) return
   }
   existing?.remove()
 
   const button = createButton(taskview, placement)
   if (heading) heading.appendChild(button)
-  else if (section) section.before(button)
-  else taskview.prepend(button)
+  else section?.before(button)
 
   if (placement !== loggedPlacement) {
     loggedPlacement = placement
     log(
-      placement === 'heading'
+      heading
         ? 'files button: beside the Attachments heading'
-        : placement === 'section'
-          ? 'files button: no Attachments heading found, placed above the attachments section'
-          : 'files button: no attachments section in this card, placed at the top',
+        : 'files button: no Attachments heading found, placed above the attachments section',
     )
   }
 }
