@@ -26,7 +26,7 @@ about. That risk is deliberately confined — see [Fragile points](#fragile-poin
 
 ```bash
 npm install
-npm test          # 176 tests, no browser or Kanban Tool account needed
+npm test          # 180 tests, no browser or Kanban Tool account needed
 npm run build     # -> dist/kt-table-view.js
 npm run harness   # http://localhost:5180 - the real table against fake board data
 ```
@@ -59,6 +59,25 @@ nothing changes on the board, so check the Network tab for the failing request r
 than the extension. A paste that will not save can be bypassed by pasting the one-line
 bootstrap below instead and hosting the bundle, which is also the faster loop.
 
+### Loading it from a URL instead
+
+The Developer Tools box also takes a URL, which avoids pasting 58 KB every time. The host
+has to serve a **JavaScript content type**, and `raw.githubusercontent.com` does not: it
+answers `content-type: text/plain` with `x-content-type-options: nosniff`, so Chrome
+refuses to run it and the console says `net::ERR_BLOCKED_BY_ORB`. The file is fine; the
+header is not.
+
+jsDelivr serves the same file out of the same repo as `application/javascript`, and works:
+
+```
+https://cdn.jsdelivr.net/gh/<owner>/<repo>@<commit-sha>/dist/kt-table-view.js
+```
+
+Pin the **commit sha**, not `@main`. A branch URL is cached for 12 hours at the edge and
+seven days in the browser, so a fresh push keeps serving the old bundle - exactly the
+failure the build stamp exists to catch. A sha changes with every push, cannot go stale,
+and the stamp in the console tells you which one you are running.
+
 For a live-reload loop while developing, paste a bootstrap instead of the bundle. Kanban
 Tool is served over HTTPS, so a `localhost` URL will be blocked as mixed content — serve
 the build through an HTTPS tunnel:
@@ -74,7 +93,8 @@ $.getScript('https://<your-tunnel>/kt-table-view.js')
 
 ### 2. Roll out account-wide
 
-Host `dist/kt-table-view.js` on any static host, then register it once:
+Host `dist/kt-table-view.js` on any static host that serves it as JavaScript (see the
+content-type note above), then register it once:
 
 1. Go to **Account Administration → Account settings**.
 2. Open the browser console and run `$('.im_a_developer').show();`
@@ -96,7 +116,8 @@ board the script detects there is no `<kt-board>` and does nothing.
 - Click a column header to sort (ascending → descending → off). Blanks always sort last.
 - Group by stage (the default, mirroring the board), swimlane, assignee, priority, card
   type, or any single-select or user custom field.
-- Click the ↗ on a row to open that card in Kanban Tool's own task view, over the table.
+- Click the ↗ on a row to open that card in Kanban Tool's own task view, over the table,
+  with the side panel the activity list and comment box live in.
   Closing the card leaves you back in the table; only if the card cannot be layered over
   it does the table step aside and show the board.
 - Tick rows to bulk-edit them in one request. Renaming is deliberately not offered in
@@ -150,7 +171,7 @@ The board itself is only ever hidden and shown, never modified. The worst failur
 
 ## Confirm on the pilot board
 
-Four things could not be verified without a real Kanban Tool account. Each is isolated,
+Five things could not be verified without a real Kanban Tool account. Each is isolated,
 commented `CONFIRM`, and cheap to correct.
 
 1. ~~**Board header selector**~~ — **confirmed**: the button goes in the navbar's
@@ -159,10 +180,15 @@ commented `CONFIRM`, and cheap to correct.
 3. **Task element id attribute** — `ID_ATTRIBUTES` in `src/kt/openTask.ts`. One of the
    candidates matches on a real board; opening a card logs which one, so the console
    settles it.
-4. ~~**The open card's element**~~ — **confirmed**: it is `<kt-taskview>`, it layers
+4. **The activity panel's selector** — `PANEL_CANDIDATES` in `src/kt/openTask.ts`. An
+   open card is more than `<kt-taskview>`: the activity list and comment box are in a
+   side panel beside it, which has to be layered too. Run `KTTableView.probeCard()` with
+   a card open and replace the candidates with what it names. Each match is logged
+   (`card surface: …`), and the page's own chrome is excluded by name.
+5. ~~**The open card's element**~~ — **confirmed**: it is `<kt-taskview>`, it layers
    over the table, and closing it **hides** that element rather than removing it.
    `src/kt/openTask.ts` watches for every way of hiding one, and removal too.
-5. **Custom field write formats** — the API docs specify read formats but not writes for
+6. **Custom field write formats** — the API docs specify read formats but not writes for
    `select`, `user`, `date` and multi-value fields. `src/model/format.ts` assumes a plain
    string, a user id, `Y-m-d`, and comma-separated values respectively. Edit one custom
    field of each type and confirm the value lands on the card.
@@ -228,7 +254,7 @@ account. Each has a regression test in `test/integration/launcher.test.ts`.
 
 ## Testing
 
-`npm test` runs 176 tests with no browser and no account:
+`npm test` runs 180 tests with no browser and no account:
 
 - **Model tests** cover column derivation from a board fixture with a custom field of
   every type, value parse/format round-trips, sorting per type, filtering, and grouping.
@@ -236,8 +262,10 @@ account. Each has a regression test in `test/integration/launcher.test.ts`.
   mounting and restoring the board, live updates arriving from the models, every editing
   path including rejected writes rolling back, permission-gated read-only cells, bulk
   updates, row windowing on a 2000-card board, and opening a card over the table - the
-  layering, both shapes of task view, every way the host might close one, the Escape
-  race, why the board stays hidden, and each fallback to showing the board.
+  layering, both shapes of task view, the side panel that comes with a card (including
+  one that arrives late, and the page chrome that must never be taken for one), every
+  way the host might close a card, the Escape race, why the board stays hidden, and each
+  fallback to showing the board.
 
 The fake in `test/integration/fakeKT.ts` is a faithful shape of the documented SDK, not a
 mock of our own calls — if the real SDK differs, these tests are what should catch it.

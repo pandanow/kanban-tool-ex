@@ -250,6 +250,13 @@ export interface FakeCardsOptions {
    * - a host that keeps one panel around rather than building a new one each time.
    */
   preRendered?: boolean
+  /**
+   * Also show a side panel - the shape the activity list and comment box come in. `late`
+   * makes it arrive after the card, which is the awkward case.
+   */
+  sidePanel?: 'immediate' | 'late'
+  /** The side panel's z-index. Below the task view's, as a second surface may well be. */
+  sidePanelZIndex?: number
   /** The task view's z-index. Defaults to Bootstrap 2.3.2's modal layer, as the host
    *  page uses it. `null` renders a task view that is not layered at all. */
   zIndex?: number | null
@@ -281,6 +288,8 @@ export function installFakeCards(taskIds: number[], options: FakeCardsOptions = 
         return
       }
       openFakeTaskView(id, options)
+      if (options.sidePanel === 'immediate') openFakeSidePanel(options)
+      if (options.sidePanel === 'late') setTimeout(() => openFakeSidePanel(options), 20)
     })
     boardElement.appendChild(card)
   }
@@ -310,8 +319,24 @@ function openFakeTaskView(taskId: number, { attach = 'body', zIndex = 1050 }: Fa
   host?.appendChild(view)
 }
 
+function openFakeSidePanel({ attach = 'body', sidePanelZIndex = 1040 }: FakeCardsOptions): void {
+  document.getElementById('kt-side_panel')?.remove()
+
+  const panel = document.createElement('div')
+  panel.id = 'kt-side_panel'
+  panel.style.cssText =
+    'position: fixed; top: 12%; right: 0; width: 22%; height: 60%; padding: 12px;' +
+    `background: #f7f8fa; border-left: 1px solid #9aa4b5; z-index: ${sidePanelZIndex};`
+  panel.innerHTML = '<h4>Activity</h4><textarea placeholder="Write a comment"></textarea>'
+
+  const host = attach === 'board' ? document.querySelector('kt-board') : document.body
+  host?.appendChild(panel)
+}
+
 /** Closes the fake task view the way the real one closes: hidden, not removed. */
 export function closeFakeTaskView(): void {
   const view = document.querySelector('kt-taskview') as HTMLElement | null
   if (view) view.style.display = 'none'
+  const panel = document.getElementById('kt-side_panel')
+  if (panel) panel.style.display = 'none'
 }

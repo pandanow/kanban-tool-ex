@@ -167,6 +167,49 @@ describe('a task view rendered inside the board', () => {
   })
 })
 
+describe("the card's other surfaces - the activity panel and its comment box", () => {
+  const panel = (): HTMLElement | null => document.getElementById('kt-side_panel')
+
+  it('drops the table below the panel as well as the task view', async () => {
+    await start({ sidePanel: 'immediate' })
+    await openFirstCard()
+    // The panel is painted lower than the card itself (1040 against 1050), so it is the
+    // panel that decides how deep the table goes; stopping at the card would bury it.
+    expect(panel()).not.toBeNull()
+    expect(root()?.style.zIndex).toBe('1039')
+  })
+
+  it('picks up a panel that arrives after the card', async () => {
+    await start({ sidePanel: 'late' })
+    await openFirstCard()
+    expect(root()?.style.zIndex).toBe('1049')
+
+    await new Promise((resolve) => setTimeout(resolve, 320))
+    expect(panel()).not.toBeNull()
+    expect(root()?.style.zIndex).toBe('1039')
+  })
+
+  it('brings a panel inside the hidden board back with the card', async () => {
+    await start({ attach: 'board', sidePanel: 'immediate' })
+    await openFirstCard()
+    expect(panel()?.style.visibility).toBe('visible')
+
+    close()
+    expect(panel()?.style.visibility).toBe('')
+  })
+
+  it('never mistakes the page chrome for part of the card', async () => {
+    // The navbar's own pane is `.top-right-pane.kt-side-panel-slide` on a real board,
+    // which matches the panel candidates and would drag the table down to nothing.
+    await start()
+    const chrome = document.querySelector('.kt-side-panel-slide')
+    expect(chrome).not.toBeNull()
+
+    await openFirstCard()
+    expect(root()?.style.zIndex).toBe('1049')
+  })
+})
+
 describe('a task view that is revealed rather than built', () => {
   it('is noticed when the host shows a panel it already had in the page', async () => {
     await start({ preRendered: true })

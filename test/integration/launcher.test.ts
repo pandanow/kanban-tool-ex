@@ -254,12 +254,14 @@ describe('inspect()', () => {
       const launcher = await freshLauncher()
       launcher.installLauncher()
       expect(() => launcher.inspect()).not.toThrow()
+      expect(() => launcher.probeCard()).not.toThrow()
 
       launchButton()?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
       await settle()
       ;(document.querySelector('.ktv-row-body .ktv-open') as HTMLElement).click()
       await settle()
       expect(() => launcher.inspect()).not.toThrow()
+      expect(() => launcher.probeCard()).not.toThrow()
     } finally {
       quiet.mockRestore()
     }

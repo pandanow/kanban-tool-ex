@@ -26,6 +26,9 @@ export const BOARD_ELEMENT = 'kt-board'
 /** Documented custom elements, used for scoping and for the pilot-board probe. */
 export const KT_ELEMENTS = ['kt-board', 'kt-tasklist', 'kt-task', 'kt-taskview'] as const
 
+/** The page's only chrome, and never part of a card - see PANEL_CANDIDATES. */
+export const NAVBAR_SELECTOR = 'nav.navbar, .navbar'
+
 /**
  * Candidate mount points for the "Table" button, most specific first.
  *

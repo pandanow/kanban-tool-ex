@@ -57,7 +57,7 @@ const tasks = makeTasks(CARD_COUNT)
 installFakeKT(board, tasks)
 // Stand-in cards and task view, so "Open card" can be exercised here: it should layer
 // the card over the table and leave the table up behind it.
-installFakeCards(tasks.map((t) => t.id))
+installFakeCards(tasks.map((t) => t.id), { sidePanel: 'late' })
 
 // Loaded last, and dynamically, so the extension finds KT already on the page - the
 // same order a real board page gives it.

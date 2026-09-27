@@ -64,6 +64,9 @@ function tableLayer(container: HTMLElement): TableLayer {
       container.style.removeProperty('z-index')
     },
     showBoard: close,
+    owns(element: Element): boolean {
+      return container === element || container.contains(element)
+    },
     isCoveringPoint(x: number, y: number): boolean {
       if (typeof document.elementFromPoint !== 'function') return false
       const onTop = document.elementFromPoint(x, y)

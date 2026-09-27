@@ -130,6 +130,87 @@ export function installLauncher(): void {
   log(`table view ready (build ${BUILD})`)
 }
 
+/** `tag#id.class` plus everything that decides whether an element is seen and where. */
+function describeElement(element: Element): string {
+  const computed = getComputedStyle(element)
+  const rect = element.getBoundingClientRect()
+  const id = element.id ? `#${element.id}` : ''
+  const classes = typeof element.className === 'string' && element.className
+    ? `.${element.className.trim().split(/\s+/).join('.')}`
+    : ''
+  return (
+    `${element.tagName.toLowerCase()}${id}${classes} ` +
+    `[${Math.round(rect.width)}x${Math.round(rect.height)} at ${Math.round(rect.left)},${Math.round(rect.top)};` +
+    ` position: ${computed.position}; z-index: ${computed.zIndex};` +
+    ` display: ${computed.display}; visibility: ${computed.visibility}]`
+  )
+}
+
+function isWorthReporting(element: Element): boolean {
+  const rect = element.getBoundingClientRect()
+  return rect.width > 20 && rect.height > 20
+}
+
+/** Ancestors up to <body>, nearest first - where an element really lives. */
+function homeOf(element: Element): string {
+  const chain: string[] = []
+  for (let node = element.parentElement; node && node !== document.body; node = node.parentElement) {
+    const id = node.id ? `#${node.id}` : ''
+    const classes = typeof node.className === 'string' && node.className
+      ? `.${node.className.trim().split(/\s+/)[0]}`
+      : ''
+    chain.push(`${node.tagName.toLowerCase()}${id}${classes}`)
+    if (chain.length >= 8) break
+  }
+  return chain.join(' < ')
+}
+
+/**
+ * Prints what the host puts on screen for an open card, which is what a card needs to
+ * bring with it when it is opened over the table: the task view itself, anything that
+ * looks like a side panel, and every visible text box - the comment composer is one, and
+ * finding it says where the activity list lives.
+ *
+ * Run it with a card open, on the board and then over the table, and compare.
+ * Call KTTableView.probeCard().
+ */
+export function probeCard(): void {
+  log('build:', BUILD)
+
+  const taskview = document.querySelector('kt-taskview') as HTMLElement | null
+  log('kt-taskview:', taskview ? describeElement(taskview) : 'none in the DOM')
+  if (taskview) {
+    log('  lives in:', homeOf(taskview) || '<body>')
+    log(
+      '  siblings:',
+      [...(taskview.parentElement?.children ?? [])]
+        .filter((el) => el !== taskview)
+        .map(describeElement),
+    )
+  }
+
+  log(
+    'direct children of <body>:',
+    [...document.body.children].filter(isWorthReporting).map(describeElement),
+  )
+
+  // A side panel names itself somewhere in its id or class on every app that has one.
+  const named = [...document.querySelectorAll('*')].filter(
+    (el) =>
+      /side|panel|comment|activity|history|feed|stream|discussion|drawer|aside/i.test(
+        `${el.id} ${typeof el.className === 'string' ? el.className : ''}`,
+      ) && isWorthReporting(el),
+  )
+  log(`elements named like a panel (${named.length}, first 20):`)
+  for (const element of named.slice(0, 20)) log('  ', describeElement(element), '|', homeOf(element))
+
+  // The comment composer is a text box, and the shortest route to the activity list.
+  const boxes = [...document.querySelectorAll('textarea, [contenteditable="true"], input[type="text"]')]
+    .filter(isWorthReporting)
+  log(`visible text boxes (${boxes.length}):`)
+  for (const box of boxes) log('  ', describeElement(box), '|', homeOf(box))
+}
+
 /** Each ancestor that could be hiding or layering an element, as a readable line. */
 function ancestorChain(element: HTMLElement): string[] {
   const chain: string[] = []

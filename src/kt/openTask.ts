@@ -34,11 +34,34 @@
 // once known.
 
 import { log, notify, warn } from './env'
+import { BOARD_ELEMENT, NAVBAR_SELECTOR } from './selectors'
 
 const ID_ATTRIBUTES = ['data-id', 'data-task-id', 'task-id', 'id'] as const
 
 /** Documented custom element wrapping the host's own task view. */
 const TASKVIEW_ELEMENT = 'kt-taskview'
+
+/**
+ * An open card is not one element. On the board, the activity list and its comment box
+ * are in a side panel beside the task view, so "open the card over the table" has to
+ * bring every surface the host shows, not just `<kt-taskview>`.
+ *
+ * CONFIRM ON THE PILOT BOARD: which of these is the activity panel - run
+ * `KTTableView.probeCard()` with a card open and replace the list with what it names.
+ * A candidate that matches nothing costs nothing: the task view alone is layered, as
+ * before. Every match is logged, so a wrong one says its own name in the console.
+ */
+const PANEL_CANDIDATES = [
+  '[id*="side_panel"]',
+  '[class*="side_panel"]',
+  '[id*="side-panel"]',
+  '[class*="side-panel"]',
+  '[id*="task_view"]',
+  '[class*="task_view"]',
+] as const
+
+/** Below this, a panel is a sliver or a collapsed shell rather than something shown. */
+const MIN_PANEL_PX = 20
 
 /** How long the task view gets to appear after the card is clicked. */
 const APPEAR_TIMEOUT_MS = 2000
@@ -57,6 +80,8 @@ export interface TableLayer {
   bringForward(): void
   /** Take the table down and reveal the board. The fallback, and always available. */
   showBoard(): void
+  /** True when the element is part of the table itself rather than the host's page. */
+  owns(element: Element): boolean
   /** True when the table is the topmost thing painted at this viewport point. */
   isCoveringPoint(x: number, y: number): boolean
 }
@@ -64,7 +89,10 @@ export interface TableLayer {
 interface OpenState {
   taskview: HTMLElement
   layer: TableLayer
-  restoreVisibility: (() => void) | null
+  /** Every surface of the open card, against how to put it back as it was. */
+  surfaces: Map<HTMLElement, (() => void) | null>
+  /** The depth the table currently sits at: below every surface. */
+  depth: number
   stopWatching: () => void
 }
 
@@ -169,6 +197,42 @@ function findTaskViewElement(root: ParentNode = document): HTMLElement | null {
 }
 
 /**
+ * The surfaces of the open card other than the task view itself - in practice the side
+ * panel holding the activity list and the comment box.
+ *
+ * Everything here is a filter against picking up the page instead of the card: a
+ * candidate has to be on screen with a real size, has to not be one of ours, has to not
+ * wrap the whole board (page-level shells match `[class*="panel"]` on plenty of apps),
+ * has to not be page chrome - the navbar's own `top-right-pane` carries the class
+ * `kt-side-panel-slide` on a real board, and was the first thing these candidates
+ * found - and has to not already be part of the task view or an ancestor of it, which
+ * the task view's own measurement covers.
+ */
+function findPanels(taskview: HTMLElement, layer: TableLayer): HTMLElement[] {
+  const board = document.querySelector(BOARD_ELEMENT)
+  const navbar = document.querySelector(NAVBAR_SELECTOR)
+  const found: HTMLElement[] = []
+
+  for (const selector of PANEL_CANDIDATES) {
+    for (const element of document.querySelectorAll<HTMLElement>(selector)) {
+      if (found.includes(element)) continue
+      if (element === taskview || element.contains(taskview) || taskview.contains(element)) continue
+      if (layer.owns(element)) continue
+      if (board && element.contains(board)) continue
+      if (navbar && (navbar.contains(element) || element.contains(navbar))) continue
+      if (!isShowing(element, false)) continue
+      // A measured sliver is a collapsed shell, not a panel. A rect of nothing at all
+      // is no measurement - the same reading of a zero rect as everywhere else here.
+      const rect = element.getBoundingClientRect()
+      const measured = rect.width > 0 && rect.height > 0
+      if (measured && (rect.width < MIN_PANEL_PX || rect.height < MIN_PANEL_PX)) continue
+      found.push(element)
+    }
+  }
+  return found
+}
+
+/**
  * The z-index the table has to drop below for `element` to paint over it.
  *
  * What competes with our container is not the element's own z-index but that of the
@@ -251,13 +315,20 @@ function waitForTaskView(): Promise<HTMLElement | null> {
  * hiding it. Watch for both: mutations catch it at once, the interval catches whatever
  * shape of hiding mutations do not describe.
  */
-function watchForClose(taskview: HTMLElement, forced: boolean, onClosed: () => void): () => void {
+function watchOpenCard(state: OpenState, onClosed: () => void): () => void {
+  const taskview = state.taskview
   const hadLayout = hasLayout(taskview)
+  const forced = state.surfaces.get(taskview) != null
   let stopped = false
 
   const check = (): void => {
-    if (stopped || isShowing(taskview, hadLayout, forced)) return
-    onClosed()
+    if (stopped) return
+    if (!isShowing(taskview, hadLayout, forced)) {
+      onClosed()
+      return
+    }
+    // The card is still open: it may have grown a panel since we last looked.
+    syncSurfaces(state)
   }
 
   const timer = setInterval(check, POLL_MS)
@@ -275,6 +346,25 @@ function watchForClose(taskview: HTMLElement, forced: boolean, onClosed: () => v
   }
 }
 
+/**
+ * Takes in any surface of the card that was not there when it opened - the activity
+ * panel can arrive a moment after the card does - and drops the table below it. Runs on
+ * the same beat as the watch for the card closing, so a late panel costs one tick.
+ */
+function syncSurfaces(state: OpenState): void {
+  let depth = state.depth
+  for (const panel of findPanels(state.taskview, state.layer)) {
+    if (state.surfaces.has(panel)) continue
+    log('card surface:', panel)
+    state.surfaces.set(panel, forceVisible(panel))
+    depth = Math.min(depth, behindZIndex(panel))
+  }
+  if (depth !== state.depth) {
+    state.depth = depth
+    state.layer.sendBehind(depth)
+  }
+}
+
 /** Undoes everything openTask() did to the page. Safe to call when nothing is open. */
 export function closeTaskView(): void {
   generation += 1
@@ -283,7 +373,7 @@ export function closeTaskView(): void {
   current = null
   closedAt = now()
   state.stopWatching()
-  state.restoreVisibility?.()
+  for (const restore of state.surfaces.values()) restore?.()
   state.layer.bringForward()
 }
 
@@ -292,7 +382,8 @@ export function closeTaskView(): void {
  * could not get it above the table, having already put the user on the board instead.
  */
 function layerOver(taskview: HTMLElement, layer: TableLayer): boolean {
-  const restoreVisibility = forceVisible(taskview)
+  const surfaces = new Map<HTMLElement, (() => void) | null>()
+  surfaces.set(taskview, forceVisible(taskview))
   layer.sendBehind(behindZIndex(taskview))
 
   const rect = taskview.getBoundingClientRect()
@@ -304,19 +395,26 @@ function layerOver(taskview: HTMLElement, layer: TableLayer): boolean {
     // The host paints its task view below where we can put the table, so "over the
     // table" is not available on this page. Say so, and do what we always did.
     warn('the task view paints below the table; falling back to showing the board')
-    restoreVisibility?.()
+    for (const restore of surfaces.values()) restore?.()
     layer.bringForward()
     layer.showBoard()
     notify('Opened on the board', 'This card cannot be shown over the table.')
     return false
   }
 
-  current = {
+  const state: OpenState = {
     taskview,
     layer,
-    restoreVisibility,
-    stopWatching: watchForClose(taskview, restoreVisibility !== null, closeTaskView),
+    surfaces,
+    depth: behindZIndex(taskview),
+    stopWatching: () => undefined,
   }
+  // The panel the activity list lives in is often a sibling of the task view rather
+  // than part of it, and may arrive a moment later; this picks up whatever is there
+  // now, and the watch keeps looking.
+  syncSurfaces(state)
+  state.stopWatching = watchOpenCard(state, closeTaskView)
+  current = state
   return true
 }
 

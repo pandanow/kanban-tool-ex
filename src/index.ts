@@ -12,7 +12,7 @@ import css from './ui/styles.css?inline'
 import { getKT, log, warn } from './kt/env'
 import { runSelfCheck } from './kt/selectors'
 import { close, toggle } from './ui/overlay'
-import { inspect, installLauncher } from './ui/launcher'
+import { inspect, installLauncher, probeCard } from './ui/launcher'
 
 const STYLE_ID = 'ktv-styles'
 
@@ -50,4 +50,4 @@ if (kt) {
 }
 
 // A small handle for debugging from the console during the pilot.
-window.KTTableView = { toggle, close, runSelfCheck, inspect }
+window.KTTableView = { toggle, close, runSelfCheck, inspect, probeCard }
