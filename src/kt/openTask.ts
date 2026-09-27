@@ -138,6 +138,20 @@ function findTaskMatch(taskId: number, root: ParentNode = document): TaskMatch |
   return null
 }
 
+/**
+ * The task id an element carries, read the same way a `<kt-task>`'s is. Works on the
+ * cards themselves and on a task view that names its task; null when nothing matches.
+ */
+export function readTaskId(element: Element): number | null {
+  for (const attribute of ID_ATTRIBUTES) {
+    const raw = element.getAttribute(attribute)
+    if (!raw) continue
+    const id = Number.parseInt(attribute === 'id' ? raw.replace(/^task[_-]/, '') : raw, 10)
+    if (Number.isInteger(id) && id > 0) return id
+  }
+  return null
+}
+
 export function findTaskElement(taskId: number, root: ParentNode = document): HTMLElement | null {
   return findTaskMatch(taskId, root)?.element ?? null
 }
@@ -203,7 +217,8 @@ function hasLayout(element: HTMLElement): boolean {
   return rect.width > 0 && rect.height > 0
 }
 
-function findTaskViewElement(root: ParentNode = document): HTMLElement | null {
+/** The task view the host is currently showing, if any. */
+export function findTaskViewElement(root: ParentNode = document): HTMLElement | null {
   const elements = [...root.querySelectorAll<HTMLElement>(TASKVIEW_ELEMENT)]
   return elements.find((element) => isShowing(element, false)) ?? null
 }

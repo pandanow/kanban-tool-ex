@@ -26,7 +26,7 @@ about. That risk is deliberately confined — see [Fragile points](#fragile-poin
 
 ```bash
 npm install
-npm test          # 181 tests, no browser or Kanban Tool account needed
+npm test          # 206 tests, no browser or Kanban Tool account needed
 npm run build     # -> dist/kt-table-view.js
 npm run harness   # http://localhost:5180 - the real table against fake board data
 ```
@@ -120,6 +120,10 @@ board the script detects there is no `<kt-board>` and does nothing.
   with the side panel the activity list and comment box live in.
   Closing the card leaves you back in the table; only if the card cannot be layered over
   it does the table step aside and show the board.
+- An open card - from the board or from the table - gets a **Files** button. It shows the
+  card's image attachments as previews; click one to see it full size, and step through
+  them with the ‹ › arrows or the arrow keys. Escape goes back one step at a time and
+  never closes the card underneath.
 - Tick rows to bulk-edit them in one request. Renaming is deliberately not offered in
   bulk, and fields a card cannot be without cannot be cleared in bulk.
 - Search across every visible column, or click **Filters** for a filter box under each
@@ -139,6 +143,7 @@ src/
     permissions.ts  delegates to KT.currentUser.can
     persistence.ts  per-user, per-board view preferences in localStorage
     openTask.ts     opens a card over the table, in KT's own task view
+    taskFiles.ts    a card's image attachments, from the model or GET /api/v3/tasks/:id
   model/            pure, no DOM, no KT - the testable core
     columns.ts      derives columns from board settings + custom fields
     rows.ts         task attributes -> row values + display text
@@ -149,6 +154,8 @@ src/
     overlay.ts      mount over <kt-board>, restore it on close
     TableView.tsx   state, wiring
     Toolbar.tsx  Table.tsx  BulkBar.tsx  cells/Cell.tsx
+    files.ts        the Files button on every open card, and its dialog's keys
+    FilesDialog.tsx preview grid and full-size viewer
   edit/
     save.ts         one cell: optimistic write, rollback on rejection
     bulk.ts         many cells: KT.tasks.groupUpdate
@@ -171,8 +178,8 @@ The board itself is only ever hidden and shown, never modified. The worst failur
 
 ## Confirm on the pilot board
 
-Six things could not be verified without a real Kanban Tool account. Five are now
-settled on the pilot board; the last is the only `CONFIRM` left in the source.
+Seven things could not be verified without a real Kanban Tool account. Five are now
+settled on the pilot board; the last two are the only `CONFIRM`s left in the source.
 
 1. ~~**Board header selector**~~ — **confirmed**: the button goes in the navbar's
    `.top-right-pane ._links` group, beside Share / Settings / Help. Floats if absent.
@@ -191,6 +198,12 @@ settled on the pilot board; the last is the only `CONFIRM` left in the source.
    `select`, `user`, `date` and multi-value fields. `src/model/format.ts` assumes a plain
    string, a user id, `Y-m-d`, and comma-separated values respectively. Edit one custom
    field of each type and confirm the value lands on the card.
+7. **Attachments over the session** — the API docs only show bearer tokens, and list a
+   card's attachments nowhere but `GET /api/v3/tasks/:id.json`. `src/kt/taskFiles.ts`
+   calls that with the session's cookies. Open **Files** on a card with images; a
+   refusal logs `attachments for task N: the API answered <status>` and the dialog
+   says it could not load the files. Also check where the button sits on the card: it
+   is prepended to `<kt-taskview>` until a header selector is confirmed.
 
 ## Notes from the first real board
 
@@ -254,7 +267,7 @@ account. Each has a regression test in `test/integration/launcher.test.ts`.
 
 ## Testing
 
-`npm test` runs 181 tests with no browser and no account:
+`npm test` runs 206 tests with no browser and no account:
 
 - **Model tests** cover column derivation from a board fixture with a custom field of
   every type, value parse/format round-trips, sorting per type, filtering, and grouping.

@@ -14,6 +14,7 @@ import { BUILD, getJQuery, getKT, log, warn } from '../kt/env'
 import { findToolbarElement } from '../kt/selectors'
 import { behindZIndex, stackingZIndex, taskViewOwnsEscape } from '../kt/openTask'
 import { close, isOpen, onBoardRerender, toggle } from './overlay'
+import { installFilesButton } from './files'
 import type { ContextMenuEntry } from '../kt/types'
 
 const BUTTON_ID = 'ktv-launch-button'
@@ -127,6 +128,7 @@ export function installLauncher(): void {
   guard('context menu entry', registerContextMenu)
   guard('board render watcher', watchBoardRenders)
   guard('escape handler', watchEscape)
+  guard('files button', installFilesButton)
   log(`table view ready (build ${BUILD})`)
 }
 

@@ -22,6 +22,21 @@ function sample<T>(values: T[], index: number): T {
   return values[index % values.length] as T
 }
 
+/** Stand-in images for the Files dialog: coloured SVGs, so the harness needs no network. */
+function sampleImage(index: number, hue: number): Record<string, unknown> {
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800">` +
+    `<rect width="100%" height="100%" fill="hsl(${hue},55%,55%)"/>` +
+    `<text x="50%" y="50%" font-size="120" text-anchor="middle" fill="#fff" font-family="sans-serif">Image ${index + 1}</text></svg>`
+  return {
+    id: index + 1,
+    name: `screenshot-${index + 1}.svg`,
+    content_type: 'image/svg+xml',
+    size: svg.length,
+    url: `data:image/svg+xml,${encodeURIComponent(svg)}`,
+  }
+}
+
 function makeTasks(count: number): TaskAttributes[] {
   return Array.from({ length: count }, (_, i) =>
     task({
@@ -48,6 +63,7 @@ function makeTasks(count: number): TaskAttributes[] {
       custom_field_4: sample(TEAMS, i),
       custom_field_6: i % 3 === 0 ? '2026-11-02' : null,
       custom_field_7: sample(USERS, i * 2),
+      attachments: Array.from({ length: i % 4 }, (_, n) => sampleImage(n, (i * 47 + n * 70) % 360)),
     }),
   )
 }

@@ -632,3 +632,236 @@
 body.ktv-open .ktv-launch-floating {
   display: none;
 }
+
+/* ---------- files: the button on the card, and the dialog over it ---------- */
+
+/* Sits inside the host's <kt-taskview>, so it resets what Bootstrap 2.3.2 gives a
+   bare button and takes nothing else from the card around it. */
+.ktv-files-launch {
+  display: flex !important;
+  visibility: visible !important;
+  justify-content: flex-end;
+  padding: 4px 8px 0;
+}
+
+.ktv-files-button {
+  margin: 0;
+  padding: 3px 12px;
+  border: 1px solid #c4cad6;
+  border-radius: 3px;
+  background: #ffffff;
+  color: #1f2430;
+  font: 600 12px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  text-shadow: none;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.ktv-files-button:hover {
+  background: #eef1f6;
+}
+
+/* The dialog container carries .ktv-root for its forced visibility and depth; this
+   turns the table's panel into a full-screen backdrop. */
+.ktv-root.ktv-files-root {
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 20, 30, 0.55);
+}
+
+.ktv-files-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(880px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  background: #ffffff;
+  border-radius: 6px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+
+.ktv-files-header,
+.ktv-files-viewer-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #dfe3ea;
+  flex: 0 0 auto;
+}
+
+.ktv-files-title {
+  flex: 1 1 auto;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.ktv-files-close {
+  padding: 0 6px;
+  border: 0;
+  background: transparent;
+  font-size: 22px;
+  line-height: 1;
+  color: #5b6577;
+  cursor: pointer;
+}
+
+.ktv-files-close:hover {
+  color: #1f2430;
+}
+
+.ktv-files-body {
+  padding: 14px;
+  overflow: auto;
+}
+
+.ktv-files-empty {
+  padding: 32px 0;
+  text-align: center;
+  color: #5b6577;
+}
+
+.ktv-files-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ktv-files-thumb {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0;
+  border: 1px solid #dfe3ea;
+  border-radius: 4px;
+  background: #ffffff;
+  text-align: left;
+  overflow: hidden;
+  cursor: zoom-in;
+}
+
+.ktv-files-thumb:hover,
+.ktv-files-thumb:focus-visible {
+  border-color: #4a7bd0;
+  box-shadow: 0 0 0 2px rgba(74, 123, 208, 0.25);
+}
+
+.ktv-files-thumb img {
+  display: block;
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  background: #f0f2f6;
+}
+
+.ktv-files-thumb-name,
+.ktv-files-thumb-size {
+  padding: 0 8px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ktv-files-thumb-name {
+  padding-top: 6px;
+}
+
+.ktv-files-thumb-size {
+  padding-bottom: 6px;
+  color: #5b6577;
+  font-size: 11px;
+}
+
+/* ---------- files: one image, full size ---------- */
+
+.ktv-files-viewer {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(10, 12, 18, 0.92);
+  color: #f2f4f8;
+}
+
+.ktv-files-viewer-bar {
+  border-bottom-color: rgba(255, 255, 255, 0.12);
+}
+
+.ktv-files-viewer .ktv-files-close,
+.ktv-files-back {
+  color: #d5dae4;
+}
+
+.ktv-files-back {
+  padding: 3px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: transparent;
+  cursor: pointer;
+}
+
+.ktv-files-viewer-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+
+.ktv-files-viewer-count {
+  color: #aab2c2;
+  white-space: nowrap;
+}
+
+.ktv-files-link {
+  color: #9cc0ff;
+  white-space: nowrap;
+}
+
+.ktv-files-stage {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 72px;
+}
+
+.ktv-files-full {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.ktv-files-arrow {
+  position: absolute;
+  top: 50%;
+  width: 48px;
+  height: 64px;
+  margin-top: -32px;
+  border: 0;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font-size: 40px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ktv-files-arrow:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.ktv-files-prev {
+  left: 12px;
+}
+
+.ktv-files-next {
+  right: 12px;
+}
