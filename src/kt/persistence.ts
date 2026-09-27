@@ -6,6 +6,7 @@
 // accessors throw, and a lost preference must never stop the table from rendering.
 
 import { warn } from './env'
+import type { ColumnFilter } from '../model/filtering'
 
 const VERSION = 1
 const PREFIX = 'kt-table-view'
@@ -16,8 +17,8 @@ export interface StoredViewState {
   sort: { columnId: string; direction: 'asc' | 'desc' } | null
   /** Free-text search across every visible column. */
   search: string
-  /** Per-column filter text, keyed by column id. */
-  filters: Record<string, string>
+  /** Per-column filter - text, or the ticked values of a checklist column. */
+  filters: Record<string, ColumnFilter>
   /** Whether the per-column filter row is shown. */
   showFilters: boolean
   /** null means "no explicit choice yet" - fall back to each column's own default. */

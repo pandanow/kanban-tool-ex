@@ -20,6 +20,18 @@ export interface CellProps {
 /** Kinds edited with a dropdown rather than free text. */
 const SELECT_KINDS = new Set(['select', 'user', 'priority'])
 
+/**
+ * Colour band for the cell's current value, where the column's options carry one.
+ * Only workflow stages do, so in practice this paints the Stage column by stage type.
+ */
+function toneClass(column: ColumnDef, row: Row): string {
+  if (!column.options) return ''
+  const current = row.values[column.id]
+  if (current === null || current === undefined || current === '') return ''
+  const option = column.options.find((o) => String(o.value) === String(current))
+  return option?.tone ? `ktv-tone-cell ktv-tone-${option.tone}` : ''
+}
+
 function ReadView({
   column,
   row,
@@ -135,6 +147,7 @@ export function Cell({
 
   const classes = [
     'ktv-cell',
+    toneClass(column, row),
     editable ? '' : 'ktv-cell-readonly',
     editing ? 'ktv-cell-editing' : '',
     saving ? 'ktv-cell-saving' : '',

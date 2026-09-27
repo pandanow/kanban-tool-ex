@@ -4,6 +4,7 @@ import {
   cardTypeOptions,
   customFieldColumns,
   leafWorkflowStages,
+  stageTone,
   swimlaneOptions,
   workflowStageOptions,
 } from '../src/model/columns'
@@ -25,6 +26,33 @@ describe('workflow stages', () => {
       'Development / In progress',
       'Development / Review',
       'Done',
+    ])
+  })
+
+  it('reads the stage type from either the id or the string', () => {
+    const byId = (id: number) => board.workflow_stages?.find((s) => s.id === id)
+    expect(stageTone(byId(1)!, board.workflow_stages)).toBe('backlog')
+    expect(stageTone(byId(2)!, board.workflow_stages)).toBe('in-progress')
+    expect(stageTone(byId(4)!, board.workflow_stages)).toBe('wait')
+    expect(stageTone(byId(5)!, board.workflow_stages)).toBe('done')
+  })
+
+  it('lets an untyped sub-column inherit its parent stage type', () => {
+    const subColumn = board.workflow_stages?.find((s) => s.id === 3)
+    expect(subColumn?.lane_type_id).toBeUndefined()
+    expect(stageTone(subColumn!, board.workflow_stages)).toBe('in-progress')
+  })
+
+  it('has no tone for a stage the board never typed', () => {
+    expect(stageTone({ ...board.workflow_stages![0]!, lane_type_id: undefined })).toBeUndefined()
+  })
+
+  it('carries the tone on each stage option, so a cell can paint itself', () => {
+    expect(workflowStageOptions(board.workflow_stages).map((o) => o.tone)).toEqual([
+      'backlog',
+      'in-progress',
+      'wait',
+      'done',
     ])
   })
 })

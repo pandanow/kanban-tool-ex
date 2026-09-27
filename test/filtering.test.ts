@@ -60,3 +60,43 @@ describe('filterRows', () => {
     expect(hasActiveFilter({ columns: { name: ' ' }, search: '' })).toBe(false)
   })
 })
+
+describe('a checklist column filter', () => {
+  const staged = buildRows(
+    [
+      task({ id: 1, name: 'Backlog card', workflow_stage_id: 1 }),
+      task({ id: 2, name: 'In progress card', workflow_stage_id: 3 }),
+      task({ id: 3, name: 'Review card', workflow_stage_id: 4 }),
+      task({ id: 4, name: 'Unstaged card', workflow_stage_id: null }),
+    ],
+    columns,
+  )
+  const stageIds = (term: string[]) =>
+    filterRows(staged, { columns: { workflow_stage_id: term }, search: '' }, visible).map(
+      (r) => r.id,
+    )
+
+  it('keeps the rows whose stage is ticked', () => {
+    expect(stageIds(['1'])).toEqual([1])
+    expect(stageIds(['1', '4'])).toEqual([1, 3])
+  })
+
+  it('matches the stored stage, not the label - "Development / In progress" is not a prefix match', () => {
+    expect(stageIds(['3'])).toEqual([2])
+  })
+
+  it('treats nothing ticked as no filter at all', () => {
+    expect(stageIds([])).toEqual([1, 2, 3, 4])
+    expect(hasActiveFilter({ columns: { workflow_stage_id: [] }, search: '' })).toBe(false)
+    expect(hasActiveFilter({ columns: { workflow_stage_id: ['1'] }, search: '' })).toBe(true)
+  })
+
+  it('ands with a text filter on another column', () => {
+    const ids = filterRows(
+      staged,
+      { columns: { workflow_stage_id: ['1', '3'], name: 'progress' }, search: '' },
+      visible,
+    ).map((r) => r.id)
+    expect(ids).toEqual([2])
+  })
+})

@@ -9,7 +9,12 @@ import {
   type StoredViewState,
 } from '../kt/persistence'
 import { findColumn, groupableColumns, type ColumnDef } from '../model/columns'
-import { filterRows, hasActiveFilter, type FilterState } from '../model/filtering'
+import {
+  filterRows,
+  hasActiveFilter,
+  type ColumnFilter,
+  type FilterState,
+} from '../model/filtering'
 import { countRows, groupRows } from '../model/grouping'
 import { sortRows } from '../model/sorting'
 import type { Row } from '../model/rows'
@@ -172,7 +177,7 @@ export function TableView({ store, onClose, layer }: TableViewProps): JSX.Elemen
     [columns],
   )
 
-  const onFilterChange = useCallback((columnId: string, value: string): void => {
+  const onFilterChange = useCallback((columnId: string, value: ColumnFilter): void => {
     setView((current) => ({
       ...current,
       filters: { ...current.filters, [columnId]: value },

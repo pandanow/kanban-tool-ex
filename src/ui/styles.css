@@ -314,6 +314,57 @@
   opacity: 0.55;
 }
 
+/* ---------- stage tones ---------- */
+
+/* A cell whose value carries a lane type paints its own background, so it wins over the
+   row's zebra striping, hover and selection colours - those are set on .ktv-row, one
+   level up. The text colour is set on the cell and inherited by .ktv-cell-value. */
+.ktv-tone-cell {
+  color: #ffffff;
+}
+
+.ktv-tone-backlog {
+  background: #6b7280;
+}
+
+.ktv-tone-in-progress {
+  background: #1d4f91;
+}
+
+.ktv-tone-wait {
+  background: #cfe4fb;
+  color: #16324f;
+}
+
+.ktv-tone-done {
+  background: #2f8551;
+}
+
+/* A read-only Stage column (no update_tasks permission) would otherwise grey the text
+   out against a dark band. */
+.ktv-tone-cell.ktv-cell-readonly .ktv-cell-value {
+  color: inherit;
+}
+
+/* The dropdown editor inherits the cell's colour, which on a dark band would be white
+   text on the editor's white background. */
+.ktv-tone-cell .ktv-cell-editor {
+  color: #1f2430;
+}
+
+/* The same four colours as a swatch, next to each stage in the filter checklist. */
+.ktv-tone-dot {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+/* A stage the board never gave a type: an outline, so the labels still line up. */
+.ktv-tone-none {
+  box-shadow: inset 0 0 0 1px #c8cedb;
+}
+
 .ktv-link {
   color: #2f7de1;
   text-decoration: none;
@@ -418,6 +469,74 @@
   outline: none;
   border-color: #2f7de1;
   background: #ffffff;
+}
+
+/* The checklist filter's popover has to escape both the filter cell and the row, which
+   are otherwise clipped so long cell values do not bleed into the next column. */
+.ktv-filterrow .ktv-cell {
+  overflow: visible;
+}
+
+.ktv-checklist-host {
+  position: relative;
+  width: 100%;
+}
+
+.ktv-checklist-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  width: 100%;
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 3px 7px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.ktv-checklist-button:hover {
+  border-color: #dfe3ea;
+  background: #ffffff;
+}
+
+.ktv-checklist-button-active {
+  border-color: #2f7de1;
+  color: #2f7de1;
+  background: #ffffff;
+}
+
+.ktv-checklist-summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ktv-checklist-caret {
+  flex: 0 0 auto;
+  color: #7a8496;
+}
+
+/* Anchored left, unlike the toolbar's right-anchored column picker: a filter cell can
+   sit at the far left of the table. */
+.ktv-checklist-popover {
+  left: 0;
+  right: auto;
+  font-weight: 400;
+}
+
+.ktv-checklist-clear {
+  width: 100%;
+  margin-top: 6px;
+  padding: 3px 6px;
+  border: 1px solid #c8cedb;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.ktv-checklist-clear:disabled {
+  color: #9aa3b2;
+  cursor: default;
 }
 
 /* ---------- group headers ---------- */

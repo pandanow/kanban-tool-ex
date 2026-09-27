@@ -8,12 +8,14 @@ import type { BoardAttributes, TaskAttributes } from '../../src/kt/types'
 export const board: BoardAttributes = {
   id: 77,
   name: 'Delivery',
+  // Lane types are spelled three different ways on purpose: the id, the string, and an
+  // untyped sub-column that has to inherit its parent's type.
   workflow_stages: [
-    { id: 1, board_id: 77, parent_id: null, lft: 1, rgt: 2, position: 0, name: 'Backlog' },
-    { id: 2, board_id: 77, parent_id: null, lft: 3, rgt: 8, position: 1, name: 'Development' },
+    { id: 1, board_id: 77, parent_id: null, lft: 1, rgt: 2, position: 0, name: 'Backlog', lane_type_id: 1 },
+    { id: 2, board_id: 77, parent_id: null, lft: 3, rgt: 8, position: 1, name: 'Development', lane_type: 'in_progress' },
     { id: 3, board_id: 77, parent_id: 2, lft: 4, rgt: 5, position: 0, name: 'In progress' },
-    { id: 4, board_id: 77, parent_id: 2, lft: 6, rgt: 7, position: 1, name: 'Review' },
-    { id: 5, board_id: 77, parent_id: null, lft: 9, rgt: 10, position: 2, name: 'Done' },
+    { id: 4, board_id: 77, parent_id: 2, lft: 6, rgt: 7, position: 1, name: 'Review', lane_type_id: 2 },
+    { id: 5, board_id: 77, parent_id: null, lft: 9, rgt: 10, position: 2, name: 'Done', lane_type: 'done' },
   ],
   swimlanes: [
     { id: 10, board_id: 77, position: 1, name: 'Platform' },

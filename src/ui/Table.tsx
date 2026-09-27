@@ -4,7 +4,10 @@ import type { ColumnDef } from '../model/columns'
 import type { RowGroup } from '../model/grouping'
 import type { Row } from '../model/rows'
 import type { SortState } from '../model/sorting'
+import type { ColumnFilter } from '../model/filtering'
+import { selectedValues } from '../model/filtering'
 import { Cell } from './cells/Cell'
+import { ChecklistFilter } from './ChecklistFilter'
 
 /** Rows and group headers are the same fixed height - see the note in styles.css. */
 export const ITEM_HEIGHT = 31
@@ -22,13 +25,13 @@ export interface TableProps {
   collapsed: Set<string>
   selected: Set<number>
   sort: SortState | null
-  filters: Record<string, string>
+  filters: Record<string, ColumnFilter>
   showFilters: boolean
   columnWidth: (column: ColumnDef) => number
   isEditable: (column: ColumnDef) => boolean
   onToggleGroup: (key: string) => void
   onToggleSort: (columnId: string) => void
-  onFilterChange: (columnId: string, value: string) => void
+  onFilterChange: (columnId: string, value: ColumnFilter) => void
   onToggleRow: (taskId: number, additive: boolean) => void
   onToggleAll: () => void
   onCommit: (taskId: number, column: ColumnDef, value: unknown) => Promise<boolean>
@@ -131,16 +134,24 @@ export function Table(props: TableProps): JSX.Element {
             <div class="ktv-cell-gutter" />
             {columns.map((column) => (
               <div key={column.id} class="ktv-cell" style={{ width: `${columnWidth(column)}px` }}>
-                <input
-                  class="ktv-filter-input"
-                  type="text"
-                  value={filters[column.id] ?? ''}
-                  placeholder="Filter…"
-                  title={`Filter ${column.label}. Use is:empty or is:set to match blank and non-blank cells.`}
-                  onInput={(event) =>
-                    onFilterChange(column.id, (event.target as HTMLInputElement).value)
-                  }
-                />
+                {column.filterKind === 'checklist' ? (
+                  <ChecklistFilter
+                    column={column}
+                    selected={selectedValues(filters[column.id])}
+                    onChange={(values) => onFilterChange(column.id, values)}
+                  />
+                ) : (
+                  <input
+                    class="ktv-filter-input"
+                    type="text"
+                    value={typeof filters[column.id] === 'string' ? (filters[column.id] as string) : ''}
+                    placeholder="Filter…"
+                    title={`Filter ${column.label}. Use is:empty or is:set to match blank and non-blank cells.`}
+                    onInput={(event) =>
+                      onFilterChange(column.id, (event.target as HTMLInputElement).value)
+                    }
+                  />
+                )}
               </div>
             ))}
           </div>

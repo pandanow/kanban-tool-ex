@@ -244,11 +244,17 @@ describe('filtering', () => {
       (b.textContent ?? '').startsWith(label),
     ) as HTMLButtonElement
 
-  const filterInput = (columnLabel: string): HTMLInputElement => {
+  /** Column index is shared by the header row and the filter row - the gutter of each
+      is a .ktv-cell-gutter, not a .ktv-cell. */
+  const filterCell = (columnLabel: string): HTMLElement => {
     const index = headerLabels().findIndex((label) => label.startsWith(columnLabel))
-    const inputs = document.querySelectorAll('.ktv-filterrow .ktv-filter-input')
-    return inputs[index] as HTMLInputElement
+    if (index === -1) throw new Error(`no column "${columnLabel}"`)
+    const cells = document.querySelectorAll('.ktv-filterrow .ktv-cell')
+    return cells[index] as HTMLElement
   }
+
+  const filterInput = (columnLabel: string): HTMLInputElement =>
+    filterCell(columnLabel).querySelector('.ktv-filter-input') as HTMLInputElement
 
   const type = async (input: HTMLInputElement, value: string): Promise<void> => {
     input.value = value
@@ -260,9 +266,79 @@ describe('filtering', () => {
     expect(document.querySelector('.ktv-filterrow')).toBeNull()
     click(toolbarButton('Filters'))
     await settle()
+    // Every column gets a text box except Stage, which gets a checklist instead.
     expect(document.querySelectorAll('.ktv-filterrow .ktv-filter-input').length).toBe(
-      headerLabels().length,
+      headerLabels().length - 1,
     )
+    expect(document.querySelectorAll('.ktv-filterrow .ktv-checklist-host').length).toBe(1)
+    expect(filterCell('Stage').querySelector('.ktv-checklist-button')).not.toBeNull()
+  })
+
+  it('filters Stage by ticking stages, not by typing', async () => {
+    click(toolbarButton('Filters'))
+    await settle()
+
+    const button = filterCell('Stage').querySelector(
+      '.ktv-checklist-button',
+    ) as HTMLButtonElement
+    expect(button.textContent).toContain('All')
+    click(button)
+    await settle()
+
+    const boxes = [...filterCell('Stage').querySelectorAll('.ktv-popover-item')]
+    expect(boxes.map((b) => b.textContent)).toEqual([
+      'Backlog',
+      'Development / In progress',
+      'Development / Review',
+      'Done',
+    ])
+
+    // Both fixture cards sit in Backlog, so ticking Done hides them and ticking
+    // Backlog as well brings them back - the ticked stages are ORed together.
+    const tick = (index: number): void => {
+      const box = boxes[index]?.querySelector('input') as HTMLInputElement
+      box.checked = !box.checked
+      box.dispatchEvent(new window.Event('change', { bubbles: true }))
+    }
+
+    tick(3)
+    await settle()
+    expect(document.querySelectorAll('.ktv-row-body')).toHaveLength(0)
+    expect(document.querySelector('.ktv-count')?.textContent).toBe('0 of 2 cards')
+    expect(
+      filterCell('Stage').querySelector('.ktv-checklist-button')?.textContent,
+    ).toContain('Done')
+
+    tick(0)
+    await settle()
+    expect(document.querySelectorAll('.ktv-row-body')).toHaveLength(2)
+    expect(
+      filterCell('Stage').querySelector('.ktv-checklist-button')?.textContent,
+    ).toContain('2 selected')
+  })
+
+  it('shows every card again when the stage checklist is cleared', async () => {
+    click(toolbarButton('Filters'))
+    await settle()
+    click(filterCell('Stage').querySelector('.ktv-checklist-button') as HTMLElement)
+    await settle()
+
+    const done = [...filterCell('Stage').querySelectorAll('.ktv-popover-item input')][3] as HTMLInputElement
+    done.checked = true
+    done.dispatchEvent(new window.Event('change', { bubbles: true }))
+    await settle()
+    expect(document.querySelector('.ktv-count')?.textContent).toBe('0 of 2 cards')
+
+    click(filterCell('Stage').querySelector('.ktv-checklist-clear') as HTMLElement)
+    await settle()
+    expect(document.querySelector('.ktv-count')?.textContent).toBe('2 cards')
+  })
+
+  it('paints the stage cell with the stage type', () => {
+    expect(cell(0, 'Stage').className).toContain('ktv-tone-backlog')
+    // Only the Stage column is banded.
+    expect(cell(0, 'Card').className).not.toContain('ktv-tone-')
+    expect(cell(0, 'Swimlane').className).not.toContain('ktv-tone-')
   })
 
   it('filters on one column without touching the others', async () => {

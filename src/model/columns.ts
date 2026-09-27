@@ -26,6 +26,30 @@ export type ColumnKind =
 export interface SelectOption {
   value: string | number | null
   label: string
+  /** Colour band the option paints its cell with. Only workflow stages set one. */
+  tone?: StageTone
+}
+
+/**
+ * How a board classifies a workflow stage. Kanban Tool calls these lane types and
+ * exposes them on a stage as `lane_type` (read-only string) and `lane_type_id`
+ * (1 backlog / 2 waiting / 3 in progress / 4 done, or null when the board never set
+ * one). We read either, because only the string is documented as always present.
+ */
+export type StageTone = 'backlog' | 'in-progress' | 'wait' | 'done'
+
+const LANE_TYPE_TONES: Record<string, StageTone> = {
+  backlog_inventory: 'backlog',
+  waiting: 'wait',
+  in_progress: 'in-progress',
+  done: 'done',
+}
+
+const LANE_TYPE_ID_TONES: Record<number, StageTone> = {
+  1: 'backlog',
+  2: 'wait',
+  3: 'in-progress',
+  4: 'done',
 }
 
 export interface ColumnDef {
@@ -44,6 +68,12 @@ export interface ColumnDef {
   groupable: boolean
   /** Present in the column picker but off until the user turns it on. */
   defaultHidden: boolean
+  /**
+   * How the per-column filter is entered: free text, or a checkbox per option.
+   * A checklist only makes sense where the option set is short and closed, which on a
+   * board means the workflow stages.
+   */
+  filterKind: 'text' | 'checklist'
 }
 
 const DEFAULT_WIDTHS: Record<ColumnKind, number> = {
@@ -94,10 +124,41 @@ export function workflowStageLabel(
   return parts.join(' / ')
 }
 
+/**
+ * The lane type of a stage, falling back to the nearest ancestor that declares one.
+ * A board that splits "Development" into "In progress" and "Review" usually types the
+ * parent and leaves the sub-columns blank, and those sub-columns are exactly the ones
+ * tasks sit in.
+ */
+export function stageTone(
+  stage: WorkflowStage,
+  stages: WorkflowStage[] = [],
+): StageTone | undefined {
+  const byId = new Map(stages.map((s) => [s.id, s]))
+  let current: WorkflowStage | undefined = stage
+  const guard = new Set<number>([stage.id])
+  while (current) {
+    const byName = current.lane_type ? LANE_TYPE_TONES[current.lane_type] : undefined
+    if (byName) return byName
+    const byNumber =
+      typeof current.lane_type_id === 'number'
+        ? LANE_TYPE_ID_TONES[current.lane_type_id]
+        : undefined
+    if (byNumber) return byNumber
+    if (current.parent_id == null) return undefined
+    const parent: WorkflowStage | undefined = byId.get(current.parent_id)
+    if (!parent || guard.has(parent.id)) return undefined
+    guard.add(parent.id)
+    current = parent
+  }
+  return undefined
+}
+
 export function workflowStageOptions(stages: WorkflowStage[] = []): SelectOption[] {
   return leafWorkflowStages(stages).map((stage) => ({
     value: stage.id,
     label: workflowStageLabel(stage, stages),
+    tone: stageTone(stage, stages),
   }))
 }
 
@@ -134,12 +195,13 @@ function fixedColumns(board: BoardAttributes): ColumnDef[] {
   }))
 
   const column = (
-    def: Omit<ColumnDef, 'width' | 'defaultHidden' | 'groupable'> &
-      Partial<Pick<ColumnDef, 'width' | 'defaultHidden' | 'groupable'>>,
+    def: Omit<ColumnDef, 'width' | 'defaultHidden' | 'groupable' | 'filterKind'> &
+      Partial<Pick<ColumnDef, 'width' | 'defaultHidden' | 'groupable' | 'filterKind'>>,
   ): ColumnDef => ({
     width: DEFAULT_WIDTHS[def.kind],
     defaultHidden: false,
     groupable: false,
+    filterKind: 'text',
     ...def,
   })
 
@@ -160,6 +222,7 @@ function fixedColumns(board: BoardAttributes): ColumnDef[] {
       editable: true,
       options: workflowStageOptions(board.workflow_stages),
       groupable: true,
+      filterKind: 'checklist',
       width: 180,
     }),
     column({
@@ -349,6 +412,7 @@ export function customFieldColumns(board: BoardAttributes): ColumnDef[] {
       // appear in two groups at once.
       groupable: kind === 'select' || kind === 'user',
       defaultHidden: false,
+      filterKind: 'text',
     })
   }
   return columns
