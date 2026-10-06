@@ -885,3 +885,10 @@ body.ktv-open .ktv-launch-floating {
 .ktv-files-next {
   right: 12px;
 }
+
+/* The one rule that styles the host board rather than our own overlay: card titles on
+   the board, a little larger for readability. Deliberately unscoped by .ktv-, so
+   test/styles.test.ts allow-lists it by name. */
+kt-task .kt-task-body {
+  font-size: 14px !important;
+}

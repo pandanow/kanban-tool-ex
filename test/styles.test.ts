@@ -34,7 +34,9 @@ describe('the overlay stylesheet', () => {
     const selectors = [...css.matchAll(/^([^@\s][^{]*)\{/gm)].map((m) => (m[1] ?? '').trim())
     const unscoped = selectors.filter(
       (selector) =>
-        !selector.includes('.ktv-') && !selector.startsWith('body.ktv-open'),
+        !selector.includes('.ktv-') &&
+        !selector.startsWith('body.ktv-open') &&
+        selector !== 'kt-task .kt-task-body', // board card title size, on purpose
     )
     expect(unscoped).toEqual([])
   })
