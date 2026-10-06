@@ -33,6 +33,9 @@ export function ChecklistFilter({
   const hostRef = useRef<HTMLDivElement | null>(null)
   const options = column.options ?? []
   const ticked = new Set(selected)
+  // An empty selection means "no filter", i.e. every stage - so "All" is shown ticked
+  // (with every stage box) both then and when each stage has been ticked by hand.
+  const allTicked = options.length > 0 && (ticked.size === 0 || ticked.size === options.length)
 
   useEffect(() => {
     if (!open) return
@@ -44,12 +47,14 @@ export function ChecklistFilter({
   }, [open])
 
   const toggle = (value: string): void => {
-    const next = new Set(ticked)
+    const next = new Set(allTicked ? options.map((o) => filterValueKey(o.value)) : ticked)
     if (next.has(value)) next.delete(value)
     else next.add(value)
     // Keep the board's own option order, so the saved state does not depend on the
     // order the boxes happened to be clicked in.
-    onChange(options.map((o) => filterValueKey(o.value)).filter((v) => next.has(v)))
+    const values = options.map((o) => filterValueKey(o.value)).filter((v) => next.has(v))
+    // Every stage ticked is the same as no filter, so store it that way.
+    onChange(values.length === options.length ? [] : values)
   }
 
   return (
@@ -65,13 +70,25 @@ export function ChecklistFilter({
       </button>
       {open && (
         <div class="ktv-popover ktv-checklist-popover">
+          {options.length > 0 && (
+            <label class="ktv-popover-item">
+              <input
+                type="checkbox"
+                checked={allTicked}
+                onChange={() => {
+                  if (!allTicked) onChange([])
+                }}
+              />
+              <span>All</span>
+            </label>
+          )}
           {options.map((option) => {
             const value = filterValueKey(option.value)
             return (
               <label class="ktv-popover-item" key={value}>
                 <input
                   type="checkbox"
-                  checked={ticked.has(value)}
+                  checked={allTicked || ticked.has(value)}
                   onChange={() => toggle(value)}
                 />
                 <span
