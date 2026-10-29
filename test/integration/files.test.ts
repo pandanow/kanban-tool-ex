@@ -257,6 +257,13 @@ describe('which attachments are images', () => {
     expect(isImage('', 'notes.txt')).toBe(false)
   })
 
+  it('finds a .png whose type is vague or non-standard, or whose name has no extension', () => {
+    expect(isImage('binary/octet-stream', 'a.png')).toBe(true)
+    expect(isImage('application/x-png', 'a.PNG')).toBe(true)
+    expect(isImage('image/PNG', 'a')).toBe(true)
+    expect(isImage('application/octet-stream', 'Screenshot', '/files/9/Screenshot.png?v=2')).toBe(true)
+  })
+
   it('skips entries without a url, and anything that is not a list', () => {
     expect(imageFiles(null)).toEqual([])
     expect(imageFiles([{ name: 'x.png', content_type: 'image/png' }])).toEqual([])

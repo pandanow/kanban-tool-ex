@@ -38,10 +38,15 @@ const IMAGE_EXTENSION = /\.(png|jpe?g|gif|webp|bmp|svg|avif)$/i
  * Whether an attachment can be shown as a picture. The MIME type decides when there is
  * one; the extension is the fallback for uploads the server typed as octet-stream.
  */
-export function isImage(contentType: string, name: string): boolean {
-  if (contentType.startsWith('image/')) return true
-  if (contentType && contentType !== 'application/octet-stream') return false
-  return IMAGE_EXTENSION.test(name)
+export function isImage(contentType: string, name: string, url = ''): boolean {
+  const type = contentType.trim().toLowerCase()
+  if (type.startsWith('image/')) return true
+  // Types that say nothing about the file (`application/octet-stream`, `binary/octet-stream`,
+  // `application/unknown`) and the odd non-standard image types (`application/x-png`) fall
+  // through to the extension; a real other type (a PDF named `.png`) stays out.
+  const vague = !type || /octet-stream|unknown|binary|^application\/(x-)?(png|jpe?g|gif|webp|bmp)$/.test(type)
+  if (!vague) return false
+  return IMAGE_EXTENSION.test(name.trim()) || IMAGE_EXTENSION.test(url.split(/[?#]/)[0] ?? '')
 }
 
 function absolute(url: string): string {
@@ -60,7 +65,7 @@ export function imageFiles(attachments: unknown): TaskFile[] {
     if (!raw || typeof raw.url !== 'string' || !raw.url) continue
     const name = typeof raw.name === 'string' ? raw.name : raw.url.split('/').pop() ?? ''
     const contentType = typeof raw.content_type === 'string' ? raw.content_type : ''
-    if (!isImage(contentType, name)) continue
+    if (!isImage(contentType, name, raw.url)) continue
     files.push({
       id: typeof raw.id === 'number' ? raw.id : files.length,
       name,
